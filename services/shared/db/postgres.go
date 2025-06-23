@@ -55,12 +55,10 @@ func InitPostgres(config DBConfig) {
     if len(config.Tables) == 0 {
         // Default tables based on service name
         switch strings.ToUpper(config.ServiceName) {
-        case "BOOKING":
-            config.Tables = []string{"bookings"} // Only specify the root table
         case "EMPLOYEE":
             config.Tables = []string{"employees"}
-        case "Service":
-            config.Tables = []string{"services"}
+        case "USER":
+            config.Tables = []string{"users"}
         default:
             utils.Warning(fmt.Sprintf("No default tables defined for service %s, skipping auto-clean", config.ServiceName))
         }

@@ -21,10 +21,6 @@ func getServiceURL(serviceName string) string {
 		switch serviceName {
 		case "employee":
 			return "http://localhost:3002"
-		case "booking":
-			return "http://localhost:3001"
-		case "service-management":
-			return "http://localhost:3003"
 		case "auth":
 			return "http://localhost:3005"
 		default:
@@ -38,18 +34,6 @@ func getServiceURL(serviceName string) string {
 // ForwardToEmployeeService forwards requests to the employee service
 func ForwardToEmployeeService(c *fiber.Ctx) error {
 	targetURL := getServiceURL("employee")
-	return forwardRequest(c, targetURL)
-}
-
-// ForwardToBookingService forwards requests to the booking service
-func ForwardToBookingService(c *fiber.Ctx) error {
-	targetURL := getServiceURL("booking")
-	return forwardRequest(c, targetURL)
-}
-
-// ForwardToServiceManagementService forwards requests to the service management service
-func ForwardToServiceManagementService(c *fiber.Ctx) error {
-	targetURL := getServiceURL("service-management")
 	return forwardRequest(c, targetURL)
 }
 
