@@ -4,7 +4,6 @@ import { applyTheme, getInitialTheme } from "@lib/utils/themeChange.util";
 import {
   FiMenu,
   FiHome,
-  FiCalendar,
   FiStar,
   FiTarget,
   FiSettings,
@@ -107,7 +106,6 @@ const Sidebar = () => {
           >
             MANAGEMENT
           </div>
-          {renderNavLink("/booking", "Bookings", <FiCalendar size={18} />)}
           {renderNavLink("/staff", "Staffs", <FiStar size={18} />)}
           {renderNavLink("/service", "Services", <FiTarget size={18} />)}
           {renderNavLink("/review", "Reviews", <FiMessageSquare size={18} />)}

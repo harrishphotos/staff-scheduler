@@ -9,7 +9,6 @@ import {
 import { Toaster } from "react-hot-toast";
 import AdminLayout from "./layout/AdminLayout";
 import OverviewPage from "./pages/OverviewPage";
-import BookingManagement from "./pages/BookingManagement";
 import StaffManagement from "./pages/StaffManagement";
 import ServiceManagement from "./pages/ServiceManagement";
 import Settings from "./pages/Settings";
@@ -24,7 +23,6 @@ const App: React.FC = () => {
         <Route path="/" element={<AdminLayout />}>
           <Route index element={<Navigate to="overview" />} />
           <Route path="overview" element={<OverviewPage />} />
-          <Route path="booking" element={<BookingManagement />} />
           <Route path="staff" element={<StaffManagement />} />
           <Route
             path="staff/:staffId/availability"

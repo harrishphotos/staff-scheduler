@@ -2,10 +2,7 @@
 import { configureStore } from "@reduxjs/toolkit";
 
 // Import reducers from different slices
-import bookingReducer from "./slices/bookingSlice"; // Manages booking-related state
-import bookingViewReducer from "./slices/bookingViewSlice"; // Manages booking view-related state
 import staffReducer from "./slices/staffSlice"; // Manages staff-related state
-import appointmentFormReducer from "./slices/appointmentFormSlice"; // Manages appointment form-related state
 import serviceReducer from "./slices/serviceSlice"; // Manages service-related state
 import availabilityReducer from "./slices/availabilitySlice"; // Manages availability-related state
 
@@ -15,10 +12,7 @@ import availabilityReducer from "./slices/availabilitySlice"; // Manages availab
  */
 const store = configureStore({
   reducer: {
-    booking: bookingReducer, // Handles booking-related state
-    bookingView: bookingViewReducer, // Handles booking view-related state
     staff: staffReducer, // Handles staff-related state
-    appointmentForm: appointmentFormReducer, // Handles appointment form-related state
     service: serviceReducer, // Handles service-related state
     availability: availabilityReducer, // Handles availability-related state
   },
