@@ -1,0 +1,14 @@
+{
+  "name": "@salo/lib",
+  "version": "0.0.1",
+  "main": "index.ts",
+  "types": "index.ts",
+  "dependencies": {
+    "@radix-ui/react-popover": "^1.1.14",
+    "@radix-ui/react-slot": "^1.2.3",
+    "@radix-ui/react-tabs": "^1.1.12",
+    "@radix-ui/react-tooltip": "^1.2.6",
+    "class-variance-authority": "^0.7.1",
+    "lucide-react": "^0.511.0"
+  }
+}

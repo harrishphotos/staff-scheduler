@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Salon Service Management</title>
+<style>
+  body { font-family: Arial, sans-serif; margin: 20px; }
+  section { margin-bottom: 40px; }
+  table { border-collapse: collapse; width: 100%; max-width: 900px; }
+  th, td { border: 1px solid #ccc; padding: 8px; }
+  th { background: #eee; }
+  input, button { margin: 5px 0; padding: 6px; width: 100%; max-width: 300px; }
+  .inline-input { display: inline-block; width: auto; margin-right: 10px; }
+</style>
+</head>
+<body>
+
+<h1>Salon Service Management</h1>
+
+<section id="categoriesSection">
+  <h2>Categories</h2>
+  <table id="categoriesTable">
+    <thead>
+      <tr><th>ID</th><th>Name</th><th>Created At</th></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <h3>Add Category</h3>
+  <input id="categoryName" placeholder="Category Name (required)" />
+  <button onclick="createCategory()">Add Category</button>
+</section>
+
+<section id="servicesSection">
+  <h2>Services</h2>
+  <table id="servicesTable">
+    <thead>
+      <tr>
+        <th>ID</th><th>Name</th><th>Duration (min)</th><th>Price</th><th>Status</th><th>Gender</th><th>Categories</th><th>Created At</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <h3>Add Service</h3>
+  <input id="serviceName" placeholder="Service Name (required)" /><br />
+  <input id="serviceDuration" type="number" placeholder="Duration (minutes)" class="inline-input" />
+  <input id="servicePrice" type="number" step="0.01" placeholder="Price" class="inline-input" /><br />
+  <input id="serviceStatus" placeholder="Status (default 'active')" class="inline-input" />
+  <input id="serviceGender" placeholder="Gender (required)" class="inline-input" /><br />
+  <input id="serviceSalonID" placeholder="Salon ID (UUID, required)" class="inline-input" /><br />
+  <button onclick="createService()">Add Service</button>
+</section>
+
+<section id="packagesSection">
+  <h2>Packages</h2>
+  <table id="packagesTable">
+    <thead>
+      <tr>
+        <th>ID</th><th>Name</th><th>Price</th><th>Duration</th><th>Status</th><th>Gender</th><th>Created At</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <h3>Add Package</h3>
+  <input id="packageName" placeholder="Package Name (required)" /><br />
+  <input id="packagePrice" type="number" step="0.01" placeholder="Package Price" class="inline-input" />
+  <input id="packageDuration" type="number" placeholder="Package Duration (min)" class="inline-input" /><br />
+  <input id="packageStatus" placeholder="Status (default 'active')" class="inline-input" />
+  <input id="packageGender" placeholder="Gender (required)" class="inline-input" /><br />
+  <input id="packageSalonID" placeholder="Salon ID (UUID, required)" class="inline-input" /><br />
+  <button onclick="createPackage()">Add Package</button>
+</section>
+
+<script>
+  const apiBase = 'http://localhost:3004/api'; // Change if your backend port differs
+
+  function safeText(val) {
+    return val === null || val === undefined || val === '' ? 'N/A' : val;
+  }
+
+  function formatDate(dateStr) {
+    if (!dateStr) return 'N/A';
+    const d = new Date(dateStr);
+    return d.toLocaleString();
+  }
+
+  async function fetchCategories() {
+    const res = await fetch(`${apiBase}/categories`);
+    const data = await res.json();
+    const tbody = document.querySelector('#categoriesTable tbody');
+    tbody.innerHTML = '';
+    data.forEach(cat => {
+      tbody.innerHTML += `
+        <tr>
+          <td>${safeText(cat.category_id)}</td>
+          <td>${safeText(cat.category_name)}</td>
+          <td>${formatDate(cat.created_at)}</td>
+        </tr>
+      `;
+    });
+  }
+
+  async function fetchServices() {
+    const res = await fetch(`${apiBase}/services`);
+    const data = await res.json();
+    const tbody = document.querySelector('#servicesTable tbody');
+    tbody.innerHTML = '';
+    data.forEach(svc => {
+      const categories = svc.categories && svc.categories.length
+        ? svc.categories.map(c => c.category_name).join(', ')
+        : 'None';
+      tbody.innerHTML += `
+        <tr>
+          <td>${safeText(svc.service_id)}</td>
+          <td>${safeText(svc.service_name)}</td>
+          <td>${safeText(svc.duration)}</td>
+          <td>${safeText(svc.price)}</td>
+          <td>${safeText(svc.status || 'active')}</td>
+          <td>${safeText(svc.gender)}</td>
+          <td>${categories}</td>
+          <td>${formatDate(svc.created_at)}</td>
+        </tr>
+      `;
+    });
+  }
+
+  async function fetchPackages() {
+    const res = await fetch(`${apiBase}/packages`);
+    const data = await res.json();
+    const tbody = document.querySelector('#packagesTable tbody');
+    tbody.innerHTML = '';
+    data.forEach(pkg => {
+      tbody.innerHTML += `
+        <tr>
+          <td>${safeText(pkg.package_id)}</td>
+          <td>${safeText(pkg.package_name)}</td>
+          <td>${safeText(pkg.package_price)}</td>
+          <td>${safeText(pkg.package_duration)}</td>
+          <td>${safeText(pkg.package_status || 'active')}</td>
+          <td>${safeText(pkg.gender)}</td>
+          <td>${formatDate(pkg.created_at)}</td>
+        </tr>
+      `;
+    });
+  }
+
+  // Create handlers (simple, no relationship linking)
+  async function createCategory() {
+    const name = document.getElementById('categoryName').value.trim();
+    if (!name) { alert('Category name is required'); return; }
+    const res = await fetch(`${apiBase}/categories`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ category_name: name })
+    });
+    if (res.ok) {
+      document.getElementById('categoryName').value = '';
+      fetchCategories();
+    } else {
+      alert('Failed to add category');
+    }
+  }
+
+  async function createService() {
+    const service_name = document.getElementById('serviceName').value.trim();
+    const duration = parseInt(document.getElementById('serviceDuration').value);
+    const price = parseFloat(document.getElementById('servicePrice').value);
+    const status = document.getElementById('serviceStatus').value.trim() || 'active';
+    const gender = document.getElementById('serviceGender').value.trim();
+    const salon_id = document.getElementById('serviceSalonID').value.trim();
+
+    if (!service_name || isNaN(duration) || isNaN(price) || !gender || !salon_id) {
+      alert('Please fill all required fields correctly');
+      return;
+    }
+
+    const res = await fetch(`${apiBase}/services`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ service_name, duration, price, status, gender, salon_id })
+    });
+
+    if (res.ok) {
+      ['serviceName', 'serviceDuration', 'servicePrice', 'serviceStatus', 'serviceGender', 'serviceSalonID'].forEach(id => {
+        document.getElementById(id).value = '';
+      });
+      fetchServices();
+    } else {
+      alert('Failed to add service');
+    }
+  }
+
+  async function createPackage() {
+    const package_name = document.getElementById('packageName').value.trim();
+    const package_price = parseFloat(document.getElementById('packagePrice').value);
+    const package_duration = parseInt(document.getElementById('packageDuration').value);
+    const package_status = document.getElementById('packageStatus').value.trim() || 'active';
+    const gender = document.getElementById('packageGender').value.trim();
+    const package_salon_id = document.getElementById('packageSalonID').value.trim();
+
+    if (!package_name || isNaN(package_price) || isNaN(package_duration) || !gender || !package_salon_id) {
+      alert('Please fill all required fields correctly');
+      return;
+    }
+
+    const res = await fetch(`${apiBase}/packages`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        package_name, package_price, package_duration,
+        package_status, gender, package_salon_id
+      })
+    });
+
+    if (res.ok) {
+      ['packageName', 'packagePrice', 'packageDuration', 'packageStatus', 'packageGender', 'packageSalonID'].forEach(id => {
+        document.getElementById(id).value = '';
+      });
+      fetchPackages();
+    } else {
+      alert('Failed to add package');
+    }
+  }
+
+  // Initial fetches
+  fetchCategories();
+  fetchServices();
+  fetchPackages();
+</script>
+
+</body>
+</html>
