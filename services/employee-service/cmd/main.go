@@ -54,7 +54,6 @@ func main() {
     // AutoMigrate all models
     err := db.DB.AutoMigrate(
 		&model.Employee{},
-		&model.EmployeeService{},
 		&model.Schedule{},
 		&model.RecurringBreak{},
 		&model.OnetimeBlock{},
@@ -74,11 +73,10 @@ func main() {
 
     // Setup all routes
     handler.SetupEmployeeRoutes(app)
-    handler.SetupEmployeeServiceRoutes(app)
     handler.SetupScheduleRoutes(app)
     handler.SetupRecurringBreakRoutes(app)
     handler.SetupOnetimeBlockRoutes(app)
-    handler.SetupAvailabilityRoutes(app)
+
 
     // Get service-specific port or use default
     port := os.Getenv("EMPLOYEE_SERVICE_PORT")

@@ -39,13 +39,6 @@ func SetupRoutes(app *fiber.App) {
 	employees.Put("/:id", proxy.ForwardToEmployeeService)     // PUT /api/employees/:id -> /employees/:id
 	employees.Delete("/:id", proxy.ForwardToEmployeeService)  // DELETE /api/employees/:id -> /employees/:id
 
-	// Employee-Service Association Routes - forwarded to employee service
-	employeeServices := protected.Group("/employee-services")
-	employeeServices.Get("/", proxy.ForwardToEmployeeService)        // GET /api/employee-services/ -> /employee-services
-	employeeServices.Post("/", proxy.ForwardToEmployeeService)       // POST /api/employee-services/ -> /employee-services
-	employeeServices.Get("/:id", proxy.ForwardToEmployeeService)     // GET /api/employee-services/:id -> /employee-services/:id
-	employeeServices.Delete("/:id", proxy.ForwardToEmployeeService)  // DELETE /api/employee-services/:id -> /employee-services/:id
-
 	// Schedule Management Routes - forwarded to employee service
 	schedules := protected.Group("/schedules")
 	schedules.Get("/", proxy.ForwardToEmployeeService)        // GET /api/schedules/ -> /schedules
