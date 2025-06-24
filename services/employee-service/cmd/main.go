@@ -76,6 +76,7 @@ func main() {
     handler.SetupScheduleRoutes(app)
     handler.SetupRecurringBreakRoutes(app)
     handler.SetupOnetimeBlockRoutes(app)
+    handler.SetupAvailabilityRoutes(app)
 
 
     // Get service-specific port or use default
