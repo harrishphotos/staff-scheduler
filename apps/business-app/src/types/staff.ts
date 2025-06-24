@@ -1,5 +1,3 @@
-import { BookingSlot } from "./booking";
-
 // Staff type for frontend (maps to Employee in backend)
 export type Staff = {
   id: string;
