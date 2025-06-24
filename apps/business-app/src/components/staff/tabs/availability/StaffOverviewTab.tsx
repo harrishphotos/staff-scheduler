@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { useSelector } from "react-redux";
 import { Staff } from "../../../../types/staff";
 import { Calendar, Clock, Coffee, CalendarX } from "lucide-react";
@@ -11,6 +11,8 @@ import {
 } from "../../../../store/slices/availabilitySlice";
 import { DAYS_OF_WEEK } from "../../../../types/availability";
 import { availabilityHelpers } from "../../../../utils/availabilityApi";
+import DateStrip from "../../../date/DateStrip";
+import SelectedDatePanel from "../../../date/SelectedDatePanel";
 
 interface StaffOverviewTabProps {
   staff: Staff;
@@ -22,6 +24,16 @@ const StaffOverviewTab: React.FC<StaffOverviewTabProps> = ({ staff }) => {
   const onetimeBlocks = useSelector(selectOnetimeBlocks);
   const weeklySchedule = useSelector(selectWeeklySchedule);
   const breaksByDay = useSelector(selectRecurringBreaksByDay);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [baseDate, setBaseDate] = useState(new Date());
+
+  const handleSelectDate = (date: Date) => {
+    if (selectedDate?.toDateString() === date.toDateString()) {
+      setSelectedDate(null); // close panel if clicked again
+    } else {
+      setSelectedDate(date); // open panel with new date
+    }
+  };
 
   // Helper function to parse time safely
   const parseTimeString = (timeString: string) => {
@@ -54,16 +66,38 @@ const StaffOverviewTab: React.FC<StaffOverviewTabProps> = ({ staff }) => {
     return blockStart >= now && blockStart <= next30Days;
   });
 
-  // Generate 7 days starting from current day
-  const getCurrentWeekDays = () => {
-    const currentDate = new Date();
+  // // Generate 7 days starting from current day
+  // const getCurrentWeekDays = () => {
+  //   const currentDate = new Date();
+  //   const weekDays = [];
+
+  //   for (let i = 0; i < 7; i++) {
+  //     const date = new Date(currentDate);
+  //     date.setDate(currentDate.getDate() + i);
+
+  //     const dayOfWeek = date.getDay(); // 0-6 (Sunday-Saturday)
+  //     const dayInfo = DAYS_OF_WEEK[dayOfWeek];
+  //     const dayNumber = date.getDate();
+
+  //     weekDays.push({
+  //       date,
+  //       dayOfWeek,
+  //       dayInfo,
+  //       dayNumber,
+  //       displayName: `${dayInfo.short}/${dayNumber}`,
+  //     });
+  //   }
+
+  //   return weekDays;
+  // };
+
+  const getWeekDaysFrom = (startDate: Date) => {
     const weekDays = [];
-
     for (let i = 0; i < 7; i++) {
-      const date = new Date(currentDate);
-      date.setDate(currentDate.getDate() + i);
+      const date = new Date(startDate);
+      date.setDate(startDate.getDate() + i);
 
-      const dayOfWeek = date.getDay(); // 0-6 (Sunday-Saturday)
+      const dayOfWeek = date.getDay();
       const dayInfo = DAYS_OF_WEEK[dayOfWeek];
       const dayNumber = date.getDate();
 
@@ -75,9 +109,10 @@ const StaffOverviewTab: React.FC<StaffOverviewTabProps> = ({ staff }) => {
         displayName: `${dayInfo.short}/${dayNumber}`,
       });
     }
-
     return weekDays;
   };
+
+  const currentWeekDays = getWeekDaysFrom(baseDate);
 
   // Get effective schedule for a specific day
   const getEffectiveScheduleForDay = (dayOfWeek: number, targetDate: Date) => {
@@ -214,8 +249,6 @@ const StaffOverviewTab: React.FC<StaffOverviewTabProps> = ({ staff }) => {
     }
   };
 
-  const currentWeekDays = getCurrentWeekDays();
-
   return (
     <div className="space-y-6">
       {/* Quick Stats */}
@@ -290,6 +323,46 @@ const StaffOverviewTab: React.FC<StaffOverviewTabProps> = ({ staff }) => {
         <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
           Weekly Schedule Overview
         </h3>
+        <div className="flex justify-between items-center mb-2">
+          <button
+            onClick={() =>
+              setBaseDate((prev) => {
+                const newDate = new Date(prev);
+                newDate.setDate(newDate.getDate() - 7);
+                return newDate;
+              })
+            }
+            className="text-sm px-3 py-1 rounded bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600"
+          >
+            ← Previous Week
+          </button>
+
+          <button
+            onClick={() =>
+              setBaseDate((prev) => {
+                const newDate = new Date(prev);
+                newDate.setDate(newDate.getDate() + 7);
+                return newDate;
+              })
+            }
+            className="text-sm px-3 py-1 rounded bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600"
+          >
+            Next Week →
+          </button>
+        </div>
+
+        <div className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-2 mb-4">
+          <DateStrip
+            days={currentWeekDays}
+            selectedDate={selectedDate}
+            onSelect={handleSelectDate}
+          />
+        </div>
+
+        {selectedDate && <SelectedDatePanel selectedDate={selectedDate} />}
+
+        {/*old date block-begin*/}
+
         <div className="grid grid-cols-1 lg:grid-cols-7 gap-3">
           {currentWeekDays.map((weekDay) => {
             const effectiveSchedule = getEffectiveScheduleForDay(
@@ -410,6 +483,7 @@ const StaffOverviewTab: React.FC<StaffOverviewTabProps> = ({ staff }) => {
           })}
         </div>
       </div>
+      {/*old date block-end*/}
 
       {/* Upcoming Time Off */}
       {upcomingBlocks.length > 0 && (
