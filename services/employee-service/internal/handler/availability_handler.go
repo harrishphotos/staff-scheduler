@@ -2,101 +2,98 @@ package handler
 
 import (
 	"services/shared/utils"
-	"time"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/google/uuid"
+	"github.com/salobook/services/employee-service/internal/model"
 	"github.com/salobook/services/employee-service/internal/service"
 	"github.com/salobook/services/employee-service/internal/validator"
 )
 
-// AvailableEmployeeResponse represents the response structure for available employees
-type AvailableEmployeeResponse struct {
-	EmployeeID string   `json:"employeeid"`
-	Service    []string `json:"service"`
-	EWT        []string `json:"EWT"`
-}
-
-// SetupAvailabilityRoutes configures the routes for employee availability checking
+// SetupAvailabilityRoutes sets up the availability-related routes
 func SetupAvailabilityRoutes(app *fiber.App) {
-	// Check employee availability for given services and time range
-	app.Post("/employees/availability", func(c *fiber.Ctx) error {
-		// 1. Parse and validate input
-		var input validator.AvailabilityInput
-		if err := c.BodyParser(&input); err != nil {
-			return c.Status(400).JSON(fiber.Map{"error": "invalid input format"})
-		}
-
-		// 2. Validate required fields and format
-		serviceIDs, startTime, endTime, date, err := validator.ValidateAvailabilityInput(input)
-		if err != nil {
-			return c.Status(400).JSON(fiber.Map{"error": err.Error()})
-		}
-
-		// 3. Get available employees with their effective working time
-		availableEmployees, err := service.GetAvailableEmployeesForServices(serviceIDs, startTime, endTime, date)
-		if err != nil {
-			utils.Error("Failed to get available employees: " + err.Error())
-			return c.Status(500).JSON(fiber.Map{"error": "failed to check employee availability"})
-		}
-
-		// 4. Build response format
-		response := make([]AvailableEmployeeResponse, len(availableEmployees))
-		for i, emp := range availableEmployees {
-			response[i] = AvailableEmployeeResponse{
-				EmployeeID: emp.EmployeeID.String(),
-				Service:    convertUUIDsToStrings(emp.ServiceIDs),
-				EWT:        emp.AvailableSlots,
-			}
-		}
-
-		return c.JSON(response)
-	})
-
-	// Check employees currently in salon (in spot)
-	app.Post("/employees/status", func(c *fiber.Ctx) error {
-		// 1. Parse input
-		var input struct {
-			CurrentTime string `json:"current_time"`
-		}
-		if err := c.BodyParser(&input); err != nil {
-			return c.Status(400).JSON(fiber.Map{"error": "invalid input format"})
-		}
-
-		// 2. Validate and parse current time
-		if input.CurrentTime == "" {
-			return c.Status(400).JSON(fiber.Map{"error": "current_time is required"})
-		}
-
-		currentTime, err := time.Parse(time.RFC3339, input.CurrentTime)
-		if err != nil {
-			return c.Status(400).JSON(fiber.Map{"error": "invalid current_time format, use RFC3339"})
-		}
-
-		// 3. Get employees who are in spot at current time
-		inSpotEmployees, err := service.GetEmployeesInSpotAtTime(currentTime)
-		if err != nil {
-			utils.Error("Failed to get in-spot employees: " + err.Error())
-			return c.Status(500).JSON(fiber.Map{"error": "failed to get employee status"})
-		}
-
-		// 4. Build response
-		employeeIDs := make([]string, len(inSpotEmployees))
-		for i, empID := range inSpotEmployees {
-			employeeIDs[i] = empID.String()
-		}
-
-		return c.JSON(fiber.Map{
-			"in_spot_employees": employeeIDs,
-		})
-	})
+	// POST /availability - Get employee availability for a specific date
+	app.Post("/availability", getEmployeeAvailability)
 }
 
-// convertUUIDsToStrings converts slice of UUIDs to slice of strings
-func convertUUIDsToStrings(uuids []uuid.UUID) []string {
-	result := make([]string, len(uuids))
-	for i, id := range uuids {
-		result[i] = id.String()
+// getEmployeeAvailability handles the POST /availability endpoint
+// Returns the complete availability information for an employee on a specific date
+// including schedule, one-time blocks, and recurring breaks with conflict resolution
+func getEmployeeAvailability(c *fiber.Ctx) error {
+	// Step 1: Parse and validate request body
+	var req model.AvailabilityRequest
+	if err := c.BodyParser(&req); err != nil {
+		utils.Error("Failed to parse availability request: " + err.Error())
+		return c.Status(400).JSON(fiber.Map{
+			"error": "Invalid request body",
+		})
 	}
-	return result
+
+	// Step 2: Validate required fields
+	if err := validator.ValidateAvailabilityRequest(req); err != nil {
+		return c.Status(400).JSON(fiber.Map{
+			"error": err.Error(),
+		})
+	}
+
+	// Step 3: Validate and parse employee ID
+	employeeID, err := validator.ValidateAvailabilityEmployeeID(req.EmployeeID)
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{
+			"error": err.Error(),
+		})
+	}
+
+	// Step 4: Validate and parse date
+	date, err := validator.ValidateAndParseAvailabilityDate(req.Date)
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{
+			"error": err.Error(),
+		})
+	}
+
+	// Step 5: Optional validations (you can enable/disable these based on business requirements)
+	
+	// Uncomment if you want to prevent queries for past dates
+	// if err := validator.ValidateAvailabilityDateNotInPast(date); err != nil {
+	// 	return c.Status(400).JSON(fiber.Map{
+	// 		"error": err.Error(),
+	// 	})
+	// }
+
+	// Validate date range (prevent queries too far in the future)
+	if err := validator.ValidateAvailabilityDateRange(date); err != nil {
+		return c.Status(400).JSON(fiber.Map{
+			"error": err.Error(),
+		})
+	}
+
+	// Step 6: Create availability service and get employee availability
+	availabilityService := service.NewAvailabilityService()
+	availability, err := availabilityService.GetEmployeeAvailability(employeeID, date)
+	if err != nil {
+		// Handle specific error cases
+		switch err.Error() {
+		case "employee not found":
+			return c.Status(404).JSON(fiber.Map{
+				"error": "Employee not found",
+			})
+		case "no schedule found for employee on this date":
+			return c.Status(404).JSON(fiber.Map{
+				"error": "No schedule found for employee on this date",
+			})
+		case "internal server error":
+			return c.Status(500).JSON(fiber.Map{
+				"error": "Internal server error",
+			})
+		default:
+			utils.Error("Unexpected error in availability handler: " + err.Error())
+			return c.Status(500).JSON(fiber.Map{
+				"error": "Internal server error",
+			})
+		}
+	}
+
+	// Step 7: Return the availability response
+	utils.Info("Successfully retrieved availability for employee " + employeeID.String() + " on date " + date.Format("2006-01-02"))
+	return c.Status(200).JSON(availability)
 } 

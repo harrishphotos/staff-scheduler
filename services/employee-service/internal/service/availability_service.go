@@ -11,357 +11,368 @@ import (
 	"github.com/salobook/services/employee-service/internal/repository"
 )
 
-// AvailableEmployee represents an employee with their available time slots
-type AvailableEmployee struct {
-	EmployeeID     uuid.UUID   `json:"employee_id"`
-	ServiceIDs     []uuid.UUID `json:"service_ids"`
-	AvailableSlots []string    `json:"available_slots"`
+// AvailabilityService handles all business logic related to employee availability
+type AvailabilityService struct{}
+
+// NewAvailabilityService creates a new instance of AvailabilityService
+func NewAvailabilityService() *AvailabilityService {
+	return &AvailabilityService{}
 }
 
-// TimeSlot represents a time period
-type TimeSlot struct {
-	Start time.Time
-	End   time.Time
-}
-
-// GetAvailableEmployeesForServices finds all employees available for given services within specified time range
-func GetAvailableEmployeesForServices(serviceIDs []uuid.UUID, requestStartTime, requestEndTime, date time.Time) ([]AvailableEmployee, error) {
-	var availableEmployees []AvailableEmployee
-	employeeServiceMap := make(map[uuid.UUID][]uuid.UUID) // employeeID -> list of serviceIDs they can provide
-
-	// 1. Get all employees who can provide any of the requested services
-	for _, serviceID := range serviceIDs {
-		employeeServices, err := repository.GetEmployeeServicesByServiceID(serviceID)
-		if err != nil {
-			utils.Error(fmt.Sprintf("Failed to get employees for service %s: %v", serviceID.String(), err))
-			continue
-		}
-
-		// Build map of employee -> services they can provide from the request
-		for _, es := range employeeServices {
-			if existingServices, exists := employeeServiceMap[es.EmployeeID]; exists {
-				employeeServiceMap[es.EmployeeID] = append(existingServices, serviceID)
-			} else {
-				employeeServiceMap[es.EmployeeID] = []uuid.UUID{serviceID}
-			}
-		}
-	}
-
-	// 2. For each employee, calculate their available time slots
-	for employeeID, matchingServices := range employeeServiceMap {
-		utils.Info(fmt.Sprintf("DEBUG: Processing employee %s", employeeID.String()))
-		availableSlots, err := calculateEmployeeAvailability(employeeID, requestStartTime, requestEndTime, date)
-		if err != nil {
-			utils.Error(fmt.Sprintf("Failed to calculate availability for employee %s: %v", employeeID.String(), err))
-			continue
-		}
-
-		utils.Info(fmt.Sprintf("DEBUG: Employee %s has %d available slots: %v", employeeID.String(), len(availableSlots), availableSlots))
-
-		// Only include employee if they have available time slots
-		if len(availableSlots) > 0 {
-			availableEmployees = append(availableEmployees, AvailableEmployee{
-				EmployeeID:     employeeID,
-				ServiceIDs:     matchingServices,
-				AvailableSlots: availableSlots,
-			})
-		}
-	}
-
-	return availableEmployees, nil
-}
-
-// calculateEmployeeAvailability calculates available time slots for an employee on a specific date
-func calculateEmployeeAvailability(employeeID uuid.UUID, requestStartTime, requestEndTime, date time.Time) ([]string, error) {
-	// 1. Check for one-time blocks that overlap with the requested time range
-	hasOneTimeConflict, err := checkOneTimeBlockConflict(employeeID, requestStartTime, requestEndTime)
+// GetEmployeeAvailability calculates the complete availability for an employee on a specific date
+// This includes schedule, one-time blocks, and recurring breaks with conflict resolution
+func (s *AvailabilityService) GetEmployeeAvailability(employeeID uuid.UUID, date time.Time) (*model.AvailabilityResponse, error) {
+	// Step 1: Validate employee exists
+	exists, err := repository.CheckEmployeeExists(employeeID)
 	if err != nil {
-		return nil, err
+		utils.Error(fmt.Sprintf("Failed to check employee existence: %v", err))
+		return nil, fmt.Errorf("internal server error")
 	}
-	if hasOneTimeConflict {
-		// Employee is unavailable due to one-time block, skip them entirely
-		return []string{}, nil
+	if !exists {
+		return nil, fmt.Errorf("employee not found")
 	}
 
-	// 2. Get employee's schedule for the requested date
-	schedules, err := repository.GetEmployeeSchedulesForDate(employeeID, date)
+	// Step 2: Find applicable schedule for the date
+	schedule, err := repository.GetEmployeeScheduleForDate(employeeID, date)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get schedules for employee %s: %v", employeeID.String(), err)
+		utils.Error(fmt.Sprintf("Failed to get schedule for employee %s on date %s: %v", employeeID, date.Format("2006-01-02"), err))
+		return nil, fmt.Errorf("internal server error")
+	}
+	if schedule == nil {
+		return nil, fmt.Errorf("no schedule found for employee on this date")
 	}
 
-	if len(schedules) == 0 {
-		// Employee has no schedule for this date
-		return []string{}, nil
+	// Step 3: Get one-time blocks that overlap with the date
+	oneTimeBlocks, err := repository.GetEmployeeOneTimeBlocksForDate(employeeID, date)
+	if err != nil {
+		utils.Error(fmt.Sprintf("Failed to get one-time blocks for employee %s on date %s: %v", employeeID, date.Format("2006-01-02"), err))
+		return nil, fmt.Errorf("internal server error")
 	}
 
-	// 3. Select the most recent valid schedule (highest valid_from date)
-	// This handles multiple schedules for the same day where the most recent one takes priority
-	var activeSchedule *model.Schedule
-	for i := range schedules {
-		if activeSchedule == nil || schedules[i].ValidFrom.After(activeSchedule.ValidFrom) {
-			activeSchedule = &schedules[i]
-		}
-	}
-
-	// 4. Get recurring breaks for the day of week
+	// Step 4: Get recurring breaks for the day of week
 	dayOfWeek := int(date.Weekday())
-	recurringBreaks, err := getRecurringBreaksForDay(employeeID, dayOfWeek)
+	recurringBreaks, err := repository.GetEmployeeRecurringBreaksForDay(employeeID, dayOfWeek)
 	if err != nil {
-		return nil, err
+		utils.Error(fmt.Sprintf("Failed to get recurring breaks for employee %s on day %d: %v", employeeID, dayOfWeek, err))
+		return nil, fmt.Errorf("internal server error")
 	}
 
-	// 5. Calculate available time slots for the active schedule only
-	// Convert schedule times to full datetime for the requested date
-	scheduleStart := time.Date(date.Year(), date.Month(), date.Day(),
-		activeSchedule.StartTime.Hour(), activeSchedule.StartTime.Minute(), activeSchedule.StartTime.Second(), 0, date.Location())
-	scheduleEnd := time.Date(date.Year(), date.Month(), date.Day(),
-		activeSchedule.EndTime.Hour(), activeSchedule.EndTime.Minute(), activeSchedule.EndTime.Second(), 0, date.Location())
-
-	// Calculate available slots within this schedule (excluding recurring breaks)
-	allAvailableSlots := calculateAvailableSlotsInSchedule(scheduleStart, scheduleEnd, recurringBreaks, date)
-
-	// 6. Find intersection with requested time range
-	requestedSlot := TimeSlot{Start: requestStartTime, End: requestEndTime}
-	intersectionSlots := findIntersectionSlots(allAvailableSlots, requestedSlot)
-
-	// 7. Convert to string format (24hr)
-	return formatTimeSlotsToStrings(intersectionSlots), nil
+	// Step 5: Process and build the response
+	response := s.buildAvailabilityResponse(employeeID, date, schedule, oneTimeBlocks, recurringBreaks)
+	
+	return response, nil
 }
 
-// checkOneTimeBlockConflict checks if employee has any one-time blocks that overlap with requested time
-func checkOneTimeBlockConflict(employeeID uuid.UUID, requestStartTime, requestEndTime time.Time) (bool, error) {
-	// Get all one-time blocks for this employee
-	oneTimeBlocks, err := repository.GetEmployeeOnetimeBlocks(employeeID)
-	if err != nil {
-		return false, fmt.Errorf("failed to get one-time blocks: %v", err)
+// buildAvailabilityResponse constructs the availability response with all necessary processing
+func (s *AvailabilityService) buildAvailabilityResponse(
+	employeeID uuid.UUID,
+	date time.Time,
+	schedule *model.Schedule,
+	oneTimeBlocks []model.OnetimeBlock,
+	recurringBreaks []model.RecurringBreak,
+) *model.AvailabilityResponse {
+	
+	// Build schedule information with full datetime
+	availabilitySchedule := s.buildScheduleInfo(date, schedule)
+	
+	// Process one-time blocks - trim to schedule hours and date boundaries
+	processedBlocks := s.processOneTimeBlocks(date, schedule, oneTimeBlocks)
+	
+	// Process recurring breaks - convert to full datetime and trim to schedule hours
+	processedBreaks := s.processRecurringBreaks(date, schedule, recurringBreaks)
+	
+	// Resolve conflicts between one-time blocks and breaks (one-time blocks take priority)
+	finalBreaks := s.resolveBreakConflicts(processedBreaks, processedBlocks)
+	
+	// Ensure slices are never nil to avoid null in JSON response
+	if processedBlocks == nil {
+		processedBlocks = []model.AvailabilityBlock{}
+	}
+	if finalBreaks == nil {
+		finalBreaks = []model.AvailabilityBreak{}
 	}
 
-	// Check for overlap with any one-time block
+	return &model.AvailabilityResponse{
+		Date:          date,
+		EmployeeID:    employeeID,
+		Schedule:      availabilitySchedule,
+		OneTimeBlocks: processedBlocks,
+		Breaks:        finalBreaks,
+	}
+}
+
+// buildScheduleInfo converts schedule to availability schedule with full datetime
+func (s *AvailabilityService) buildScheduleInfo(date time.Time, schedule *model.Schedule) *model.AvailabilitySchedule {
+	// Combine date with schedule times to create full datetime in UTC
+	startDateTime := time.Date(
+		date.Year(), date.Month(), date.Day(),
+		schedule.StartTime.Hour(), schedule.StartTime.Minute(), schedule.StartTime.Second(),
+		0, time.UTC,
+	)
+	
+	endDateTime := time.Date(
+		date.Year(), date.Month(), date.Day(),
+		schedule.EndTime.Hour(), schedule.EndTime.Minute(), schedule.EndTime.Second(),
+		0, time.UTC,
+	)
+	
+	// Handle midnight crossing schedules (end time next day)
+	if schedule.EndTime.Before(schedule.StartTime) {
+		endDateTime = endDateTime.AddDate(0, 0, 1)
+	}
+	
+	return &model.AvailabilitySchedule{
+		StartTime: startDateTime,
+		EndTime:   endDateTime,
+	}
+}
+
+// processOneTimeBlocks handles one-time blocks with multi-day span logic
+func (s *AvailabilityService) processOneTimeBlocks(
+	date time.Time,
+	schedule *model.Schedule,
+	oneTimeBlocks []model.OnetimeBlock,
+) []model.AvailabilityBlock {
+	
+	// Initialize as empty slice to ensure JSON returns [] instead of null
+	processedBlocks := make([]model.AvailabilityBlock, 0)
+	
+	// Create schedule time range for the date in UTC
+	scheduleStart := time.Date(
+		date.Year(), date.Month(), date.Day(),
+		schedule.StartTime.Hour(), schedule.StartTime.Minute(), schedule.StartTime.Second(),
+		0, time.UTC,
+	)
+	
+	scheduleEnd := time.Date(
+		date.Year(), date.Month(), date.Day(),
+		schedule.EndTime.Hour(), schedule.EndTime.Minute(), schedule.EndTime.Second(),
+		0, time.UTC,
+	)
+	
+	// Handle midnight crossing schedules
+	if schedule.EndTime.Before(schedule.StartTime) {
+		scheduleEnd = scheduleEnd.AddDate(0, 0, 1)
+	}
+	
+	scheduleRange := model.TimeRange{Start: scheduleStart, End: scheduleEnd}
+	
 	for _, block := range oneTimeBlocks {
-		// Check if there's any overlap between requested time and the block
-		// Overlap condition: (block.start < request.end) AND (block.end > request.start)
-		if block.StartDateTime.Before(requestEndTime) && block.EndDateTime.After(requestStartTime) {
-			return true, nil // Found overlap, employee is unavailable
-		}
-	}
-
-	return false, nil
-}
-
-// getRecurringBreaksForDay gets all recurring breaks for an employee on a specific day of week
-func getRecurringBreaksForDay(employeeID uuid.UUID, dayOfWeek int) ([]model.RecurringBreak, error) {
-	allBreaks, err := repository.GetEmployeeRecurringBreaks(employeeID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get recurring breaks: %v", err)
-	}
-
-	// Filter breaks for the specific day of week
-	var dayBreaks []model.RecurringBreak
-	for _, breakItem := range allBreaks {
-		if breakItem.DayOfWeek == dayOfWeek {
-			dayBreaks = append(dayBreaks, breakItem)
-		}
-	}
-
-	return dayBreaks, nil
-}
-
-// calculateAvailableSlotsInSchedule calculates available time slots within a schedule, excluding recurring breaks
-func calculateAvailableSlotsInSchedule(scheduleStart, scheduleEnd time.Time, recurringBreaks []model.RecurringBreak, date time.Time) []TimeSlot {
-	// Start with the full schedule as one slot
-	slots := []TimeSlot{{Start: scheduleStart, End: scheduleEnd}}
-
-	// Remove each recurring break from the available slots
-	for _, breakItem := range recurringBreaks {
-		// Convert break times to full datetime for the requested date
-		breakStart := time.Date(date.Year(), date.Month(), date.Day(),
-			breakItem.StartTime.Hour(), breakItem.StartTime.Minute(), breakItem.StartTime.Second(), 0, date.Location())
-		breakEnd := time.Date(date.Year(), date.Month(), date.Day(),
-			breakItem.EndTime.Hour(), breakItem.EndTime.Minute(), breakItem.EndTime.Second(), 0, date.Location())
-
-		slots = removeTimeSlotFromSlots(slots, TimeSlot{Start: breakStart, End: breakEnd})
-	}
-
-	return slots
-}
-
-// removeTimeSlotFromSlots removes a time slot from a list of time slots
-func removeTimeSlotFromSlots(slots []TimeSlot, toRemove TimeSlot) []TimeSlot {
-	var result []TimeSlot
-
-	for _, slot := range slots {
-		// Check if there's any overlap between the slot and the time to remove
-		// No overlap: keep the slot as is
-		if slot.End.Before(toRemove.Start) || slot.Start.After(toRemove.End) || slot.End.Equal(toRemove.Start) || slot.Start.Equal(toRemove.End) {
-			result = append(result, slot)
-			continue
-		}
-
-		// There's overlap, we need to split the slot
-		// Case 1: Remove part overlaps the beginning of the slot
-		if toRemove.Start.Before(slot.Start) || toRemove.Start.Equal(slot.Start) {
-			// Keep the part after the removal
-			if toRemove.End.Before(slot.End) {
-				result = append(result, TimeSlot{Start: toRemove.End, End: slot.End})
-			}
-			// If toRemove.End >= slot.End, the entire slot is removed
-		} else if toRemove.End.After(slot.End) || toRemove.End.Equal(slot.End) {
-			// Remove part overlaps the end of the slot
-			// Keep the part before the removal
-			result = append(result, TimeSlot{Start: slot.Start, End: toRemove.Start})
-		} else {
-			// Remove part is in the middle of the slot, split into two
-			result = append(result, TimeSlot{Start: slot.Start, End: toRemove.Start})
-			result = append(result, TimeSlot{Start: toRemove.End, End: slot.End})
-		}
-	}
-
-	return result
-}
-
-// findIntersectionSlots finds the intersection between available slots and the requested time slot
-func findIntersectionSlots(availableSlots []TimeSlot, requestedSlot TimeSlot) []TimeSlot {
-	var intersections []TimeSlot
-
-	for _, slot := range availableSlots {
-		// Find intersection between slot and requested time
-		intersectionStart := maxTime(slot.Start, requestedSlot.Start)
-		intersectionEnd := minTime(slot.End, requestedSlot.End)
-
-		// If there's a valid intersection (start < end)
-		if intersectionStart.Before(intersectionEnd) {
-			intersections = append(intersections, TimeSlot{
-				Start: intersectionStart,
-				End:   intersectionEnd,
+		// Create time range for the block, ensuring times are in UTC
+		blockRange := model.TimeRange{Start: block.StartDateTime.UTC(), End: block.EndDateTime.UTC()}
+		
+		// Find intersection between block and schedule
+		intersection := scheduleRange.GetIntersection(blockRange)
+		if intersection != nil && intersection.IsValid() {
+			processedBlocks = append(processedBlocks, model.AvailabilityBlock{
+				StartTime: intersection.Start.UTC(),
+				EndTime:   intersection.End.UTC(),
+				Reason:    block.Reason,
 			})
 		}
 	}
-
-	return intersections
-}
-
-// formatTimeSlotsToStrings converts time slots to string format (24hr)
-func formatTimeSlotsToStrings(slots []TimeSlot) []string {
-	result := make([]string, len(slots))
-	for i, slot := range slots {
-		startStr := slot.Start.Format("15:04")
-		endStr := slot.End.Format("15:04")
-		result[i] = fmt.Sprintf("%s-%s", startStr, endStr)
-	}
-	return result
-}
-
-// Helper functions
-func maxTime(a, b time.Time) time.Time {
-	if a.After(b) {
-		return a
-	}
-	return b
-}
-
-func minTime(a, b time.Time) time.Time {
-	if a.Before(b) {
-		return a
-	}
-	return b
-}
-
-// GetEmployeesInSpotAtTime gets all employees who are currently in the salon at the specified time
-func GetEmployeesInSpotAtTime(currentTime time.Time) ([]uuid.UUID, error) {
-	var inSpotEmployees []uuid.UUID
-
-	// Get all active employees
-	allEmployees, err := repository.GetAllEmployees()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get all employees: %v", err)
-	}
-
-	// Convert current time to Sri Lanka timezone for consistency
-	sriLankaLocation, err := time.LoadLocation("Asia/Colombo")
-	if err != nil {
-		// Fallback to manual offset if timezone data is not available
-		sriLankaLocation = time.FixedZone("LKT", 5*3600+30*60) // +05:30
-	}
-	currentTimeLocal := currentTime.In(sriLankaLocation)
 	
-	// For each employee, check if they are currently available (in spot)
-	for _, employee := range allEmployees {
-		// Skip inactive employees
-		if !employee.IsActive {
-			continue
-		}
-
-		// Check if employee is available at current time
-		isInSpot, err := isEmployeeInSpotAtTime(employee.ID, currentTimeLocal)
-		if err != nil {
-			utils.Error(fmt.Sprintf("Failed to check if employee %s is in spot: %v", employee.ID.String(), err))
-			continue
-		}
-
-		if isInSpot {
-			inSpotEmployees = append(inSpotEmployees, employee.ID)
-		}
-	}
-
-	return inSpotEmployees, nil
+	return processedBlocks
 }
 
-// isEmployeeInSpotAtTime checks if an employee is currently in the salon at the specified time
-func isEmployeeInSpotAtTime(employeeID uuid.UUID, currentTime time.Time) (bool, error) {
-	// 1. Check for one-time blocks that overlap with current time
-	hasOneTimeConflict, err := checkOneTimeBlockConflict(employeeID, currentTime, currentTime.Add(time.Minute))
-	if err != nil {
-		return false, err
+// processRecurringBreaks converts recurring breaks to full datetime and trims to schedule
+func (s *AvailabilityService) processRecurringBreaks(
+	date time.Time,
+	schedule *model.Schedule,
+	recurringBreaks []model.RecurringBreak,
+) []model.AvailabilityBreak {
+	
+	// Initialize as empty slice to ensure JSON returns [] instead of null
+	processedBreaks := make([]model.AvailabilityBreak, 0)
+	
+	utils.Info(fmt.Sprintf("Processing %d recurring breaks", len(recurringBreaks)))
+	
+	// Create schedule time range for the date in UTC
+	scheduleStart := time.Date(
+		date.Year(), date.Month(), date.Day(),
+		schedule.StartTime.Hour(), schedule.StartTime.Minute(), schedule.StartTime.Second(),
+		0, time.UTC,
+	)
+	
+	scheduleEnd := time.Date(
+		date.Year(), date.Month(), date.Day(),
+		schedule.EndTime.Hour(), schedule.EndTime.Minute(), schedule.EndTime.Second(),
+		0, time.UTC,
+	)
+	
+	// Handle midnight crossing schedules
+	if schedule.EndTime.Before(schedule.StartTime) {
+		scheduleEnd = scheduleEnd.AddDate(0, 0, 1)
 	}
-	if hasOneTimeConflict {
-		return false, nil // Employee is blocked
-	}
-
-	// 2. Get employee's schedule for current date
-	schedules, err := repository.GetEmployeeSchedulesForDate(employeeID, currentTime)
-	if err != nil {
-		return false, fmt.Errorf("failed to get schedules: %v", err)
-	}
-
-	if len(schedules) == 0 {
-		return false, nil // No schedule for today
-	}
-
-	// 3. Find the active schedule
-	var activeSchedule *model.Schedule
-	for i := range schedules {
-		if activeSchedule == nil || schedules[i].ValidFrom.After(activeSchedule.ValidFrom) {
-			activeSchedule = &schedules[i]
+	
+	utils.Info(fmt.Sprintf("Schedule range: %s to %s", scheduleStart.Format(time.RFC3339), scheduleEnd.Format(time.RFC3339)))
+	
+	scheduleRange := model.TimeRange{Start: scheduleStart, End: scheduleEnd}
+	
+	for i, recBreak := range recurringBreaks {
+		utils.Info(fmt.Sprintf("Processing break %d: ID=%s, Start=%s, End=%s", i, recBreak.ID, recBreak.StartTime.Format(time.RFC3339), recBreak.EndTime.Format(time.RFC3339)))
+		
+		// Validate break times before processing
+		if recBreak.StartTime.IsZero() || recBreak.EndTime.IsZero() {
+			utils.Error(fmt.Sprintf("Invalid break times for break ID %s", recBreak.ID))
+			continue
+		}
+		
+		// Convert break times to full datetime for the specific date in UTC
+		breakStart := time.Date(
+			date.Year(), date.Month(), date.Day(),
+			recBreak.StartTime.Hour(), recBreak.StartTime.Minute(), recBreak.StartTime.Second(),
+			0, time.UTC,
+		)
+		
+		breakEnd := time.Date(
+			date.Year(), date.Month(), date.Day(),
+			recBreak.EndTime.Hour(), recBreak.EndTime.Minute(), recBreak.EndTime.Second(),
+			0, time.UTC,
+		)
+		
+		utils.Info(fmt.Sprintf("Converted break times: %s to %s", breakStart.Format(time.RFC3339), breakEnd.Format(time.RFC3339)))
+		
+		// Handle midnight crossing breaks
+		if recBreak.EndTime.Before(recBreak.StartTime) {
+			breakEnd = breakEnd.AddDate(0, 0, 1)
+			utils.Info("Adjusted for midnight crossing break")
+		}
+		
+		breakRange := model.TimeRange{Start: breakStart, End: breakEnd}
+		utils.Info(fmt.Sprintf("Break range created: %s to %s", breakRange.Start.Format(time.RFC3339), breakRange.End.Format(time.RFC3339)))
+		
+		// Find intersection between break and schedule
+		intersection := scheduleRange.GetIntersection(breakRange)
+		if intersection != nil && intersection.IsValid() {
+			utils.Info(fmt.Sprintf("Found intersection: %s to %s", intersection.Start.Format(time.RFC3339), intersection.End.Format(time.RFC3339)))
+			processedBreaks = append(processedBreaks, model.AvailabilityBreak{
+				StartTime: intersection.Start.UTC(),
+				EndTime:   intersection.End.UTC(),
+				Reason:    recBreak.Reason,
+			})
+		} else {
+			utils.Info("No intersection found or invalid intersection")
 		}
 	}
+	
+	utils.Info(fmt.Sprintf("Processed %d breaks, returning %d valid breaks", len(recurringBreaks), len(processedBreaks)))
+	return processedBreaks
+}
 
-	// 4. Check if current time is within schedule hours
-	scheduleStart := time.Date(currentTime.Year(), currentTime.Month(), currentTime.Day(),
-		activeSchedule.StartTime.Hour(), activeSchedule.StartTime.Minute(), activeSchedule.StartTime.Second(), 0, currentTime.Location())
-	scheduleEnd := time.Date(currentTime.Year(), currentTime.Month(), currentTime.Day(),
-		activeSchedule.EndTime.Hour(), activeSchedule.EndTime.Minute(), activeSchedule.EndTime.Second(), 0, currentTime.Location())
-
-	if currentTime.Before(scheduleStart) || currentTime.After(scheduleEnd) {
-		return false, nil // Outside working hours
+// resolveBreakConflicts handles conflicts between breaks and one-time blocks
+// One-time blocks take priority and will cause breaks to be trimmed or removed
+func (s *AvailabilityService) resolveBreakConflicts(
+	breaks []model.AvailabilityBreak,
+	oneTimeBlocks []model.AvailabilityBlock,
+) []model.AvailabilityBreak {
+	
+	// Initialize as empty slice to ensure JSON returns [] instead of null
+	finalBreaks := make([]model.AvailabilityBreak, 0)
+	
+	for _, breakItem := range breaks {
+		breakRange := model.TimeRange{Start: breakItem.StartTime, End: breakItem.EndTime}
+		
+		// Check for conflicts with all one-time blocks
+		conflictingRanges := s.findConflictingRanges(breakRange, oneTimeBlocks)
+		
+		// If no conflicts, keep the break as is
+		if len(conflictingRanges) == 0 {
+			finalBreaks = append(finalBreaks, breakItem)
+			continue
+		}
+		
+		// Resolve conflicts by trimming or splitting the break
+		resolvedBreaks := s.trimBreakAroundConflicts(breakItem, conflictingRanges)
+		finalBreaks = append(finalBreaks, resolvedBreaks...)
 	}
+	
+	return finalBreaks
+}
 
-	// 5. Check if current time falls within a recurring break
-	dayOfWeek := int(currentTime.Weekday())
-	recurringBreaks, err := getRecurringBreaksForDay(employeeID, dayOfWeek)
-	if err != nil {
-		return false, err
-	}
-
-	for _, breakItem := range recurringBreaks {
-		breakStart := time.Date(currentTime.Year(), currentTime.Month(), currentTime.Day(),
-			breakItem.StartTime.Hour(), breakItem.StartTime.Minute(), breakItem.StartTime.Second(), 0, currentTime.Location())
-		breakEnd := time.Date(currentTime.Year(), currentTime.Month(), currentTime.Day(),
-			breakItem.EndTime.Hour(), breakItem.EndTime.Minute(), breakItem.EndTime.Second(), 0, currentTime.Location())
-
-		if !currentTime.Before(breakStart) && currentTime.Before(breakEnd) {
-			return false, nil // Employee is on break
+// findConflictingRanges finds all one-time block ranges that conflict with a break
+func (s *AvailabilityService) findConflictingRanges(
+	breakRange model.TimeRange,
+	oneTimeBlocks []model.AvailabilityBlock,
+) []model.TimeRange {
+	
+	conflicts := make([]model.TimeRange, 0)
+	
+	for _, block := range oneTimeBlocks {
+		blockRange := model.TimeRange{Start: block.StartTime, End: block.EndTime}
+		if breakRange.HasOverlap(blockRange) {
+			conflicts = append(conflicts, blockRange)
 		}
 	}
+	
+	return conflicts
+}
 
-	return true, nil // Employee is in spot
+// trimBreakAroundConflicts trims a break around conflicting one-time blocks
+// May result in multiple break segments or complete removal
+func (s *AvailabilityService) trimBreakAroundConflicts(
+	originalBreak model.AvailabilityBreak,
+	conflicts []model.TimeRange,
+) []model.AvailabilityBreak {
+	
+	// Start with the original break range
+	availableRanges := []model.TimeRange{{Start: originalBreak.StartTime, End: originalBreak.EndTime}}
+	
+	// For each conflict, trim all available ranges
+	for _, conflict := range conflicts {
+		var newRanges []model.TimeRange
+		
+		for _, availableRange := range availableRanges {
+			trimmedRanges := s.trimRangeAroundConflict(availableRange, conflict)
+			newRanges = append(newRanges, trimmedRanges...)
+		}
+		
+		availableRanges = newRanges
+	}
+	
+	// Convert remaining ranges back to breaks
+	resultBreaks := make([]model.AvailabilityBreak, 0)
+	for _, timeRange := range availableRanges {
+		if timeRange.IsValid() {
+			resultBreaks = append(resultBreaks, model.AvailabilityBreak{
+				StartTime: timeRange.Start,
+				EndTime:   timeRange.End,
+				Reason:    originalBreak.Reason,
+			})
+		}
+	}
+	
+	return resultBreaks
+}
+
+// trimRangeAroundConflict trims a single time range around a conflicting range
+func (s *AvailabilityService) trimRangeAroundConflict(
+	original model.TimeRange,
+	conflict model.TimeRange,
+) []model.TimeRange {
+	
+	// If no overlap, return original range
+	if !original.HasOverlap(conflict) {
+		return []model.TimeRange{original}
+	}
+	
+	var result []model.TimeRange
+	
+	// Add the part before the conflict (if any)
+	if original.Start.Before(conflict.Start) {
+		beforeRange := model.TimeRange{Start: original.Start, End: conflict.Start}
+		if beforeRange.IsValid() {
+			result = append(result, beforeRange)
+		}
+	}
+	
+	// Add the part after the conflict (if any)
+	if original.End.After(conflict.End) {
+		afterRange := model.TimeRange{Start: conflict.End, End: original.End}
+		if afterRange.IsValid() {
+			result = append(result, afterRange)
+		}
+	}
+	
+	return result
 } 

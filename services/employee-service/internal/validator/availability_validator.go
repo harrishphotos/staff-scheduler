@@ -5,73 +5,84 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/salobook/services/employee-service/internal/model"
 )
 
-// AvailabilityInput represents the input for checking employee availability
-type AvailabilityInput struct {
-	Service   []string `json:"service"`
-	StartTime string   `json:"starttime"`
-	EndTime   string   `json:"endtime"`
+// ValidateAvailabilityRequest validates the availability request input
+func ValidateAvailabilityRequest(req model.AvailabilityRequest) error {
+	// Validate required fields
+	if req.Date == "" {
+		return fmt.Errorf("date is required")
+	}
+	if req.EmployeeID == "" {
+		return fmt.Errorf("employee_id is required")
+	}
+	
+	return nil
 }
 
-// ValidateAvailabilityInput validates and parses the availability input
-// Returns: serviceIDs, startTime, endTime, date, error
-func ValidateAvailabilityInput(input AvailabilityInput) ([]uuid.UUID, time.Time, time.Time, time.Time, error) {
-	// 1. Validate required fields
-	if len(input.Service) == 0 {
-		return nil, time.Time{}, time.Time{}, time.Time{}, fmt.Errorf("service array cannot be empty")
+// ValidateAndParseAvailabilityDate validates and parses the date from the request
+// Supports both date-only and full ISO datetime formats
+func ValidateAndParseAvailabilityDate(dateStr string) (time.Time, error) {
+	// Try parsing as full ISO datetime first (RFC3339)
+	if date, err := time.Parse(time.RFC3339, dateStr); err == nil {
+		// Truncate to date only (start of day) for consistency
+		return time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, date.Location()), nil
 	}
-	if input.StartTime == "" {
-		return nil, time.Time{}, time.Time{}, time.Time{}, fmt.Errorf("starttime is required")
-	}
-	if input.EndTime == "" {
-		return nil, time.Time{}, time.Time{}, time.Time{}, fmt.Errorf("endtime is required")
-	}
-
-	// 2. Parse and validate service IDs
-	serviceIDs := make([]uuid.UUID, len(input.Service))
-	for i, serviceStr := range input.Service {
-		serviceID, err := uuid.Parse(serviceStr)
-		if err != nil {
-			return nil, time.Time{}, time.Time{}, time.Time{}, fmt.Errorf("invalid service ID format at index %d: %s", i, serviceStr)
-		}
-		serviceIDs[i] = serviceID
-	}
-
-	// 3. Parse start and end times (expecting RFC3339 format with timezone)
-	startTime, err := time.Parse(time.RFC3339, input.StartTime)
-	if err != nil {
-		return nil, time.Time{}, time.Time{}, time.Time{}, fmt.Errorf("invalid starttime format, expected RFC3339 (e.g., 2024-12-09T13:00:00+05:30)")
-	}
-
-	endTime, err := time.Parse(time.RFC3339, input.EndTime)
-	if err != nil {
-		return nil, time.Time{}, time.Time{}, time.Time{}, fmt.Errorf("invalid endtime format, expected RFC3339 (e.g., 2024-12-09T16:00:00+05:30)")
-	}
-
-	// 4. Convert times to Sri Lanka timezone (+05:30)
-	sriLankaLocation, err := time.LoadLocation("Asia/Colombo")
-	if err != nil {
-		// Fallback to manual offset if timezone data is not available
-		sriLankaLocation = time.FixedZone("LKT", 5*3600+30*60) // +05:30
-	}
-
-	startTime = startTime.In(sriLankaLocation)
-	endTime = endTime.In(sriLankaLocation)
-
-	// 5. Validate time logic
-	if endTime.Before(startTime) || endTime.Equal(startTime) {
-		return nil, time.Time{}, time.Time{}, time.Time{}, fmt.Errorf("endtime must be after starttime")
-	}
-
-	// 6. Check if start and end are on the same date
-	startDate := time.Date(startTime.Year(), startTime.Month(), startTime.Day(), 0, 0, 0, 0, startTime.Location())
-	endDate := time.Date(endTime.Year(), endTime.Month(), endTime.Day(), 0, 0, 0, 0, endTime.Location())
 	
-	if !startDate.Equal(endDate) {
-		return nil, time.Time{}, time.Time{}, time.Time{}, fmt.Errorf("starttime and endtime must be on the same date")
+	// Try parsing as date only (YYYY-MM-DD)
+	if date, err := time.Parse("2006-01-02", dateStr); err == nil {
+		return date, nil
 	}
+	
+	// Try parsing as other common ISO formats
+	formats := []string{
+		"2006-01-02T15:04:05Z",
+		"2006-01-02T15:04:05.000Z",
+		"2006-01-02T15:04:05-07:00",
+		"2006-01-02T15:04:05.000-07:00",
+	}
+	
+	for _, format := range formats {
+		if date, err := time.Parse(format, dateStr); err == nil {
+			// Truncate to date only (start of day) for consistency
+			return time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, date.Location()), nil
+		}
+	}
+	
+	return time.Time{}, fmt.Errorf("invalid date format. Expected ISO 8601 format (e.g., '2025-06-10' or '2025-06-10T00:00:00Z')")
+}
 
-	// 7. Return parsed values
-	return serviceIDs, startTime, endTime, startDate, nil
+// ValidateAvailabilityEmployeeID validates and parses the employee ID
+func ValidateAvailabilityEmployeeID(employeeIDStr string) (uuid.UUID, error) {
+	employeeID, err := uuid.Parse(employeeIDStr)
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("invalid employee ID format")
+	}
+	
+	return employeeID, nil
+}
+
+// ValidateAvailabilityDateNotInPast validates that the requested date is not in the past
+// This is optional validation - you may want to allow past dates for historical data
+func ValidateAvailabilityDateNotInPast(date time.Time) error {
+	today := time.Now().Truncate(24 * time.Hour)
+	if date.Before(today) {
+		return fmt.Errorf("cannot retrieve availability for past dates")
+	}
+	
+	return nil
+}
+
+// ValidateAvailabilityDateRange validates that the requested date is within a reasonable range
+// This prevents queries for dates too far in the future where no schedules might exist
+func ValidateAvailabilityDateRange(date time.Time) error {
+	today := time.Now().Truncate(24 * time.Hour)
+	maxFutureDate := today.AddDate(2, 0, 0) // 2 years in the future
+	
+	if date.After(maxFutureDate) {
+		return fmt.Errorf("date is too far in the future (maximum 2 years ahead)")
+	}
+	
+	return nil
 } 
