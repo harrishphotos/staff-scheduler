@@ -3,13 +3,11 @@ import { useEffect, useState } from "react";
 import { applyTheme, getInitialTheme } from "@lib/utils/themeChange.util";
 import {
   FiMenu,
-  FiHome,
   FiStar,
-  FiTarget,
   FiSettings,
-  FiMessageSquare,
   FiMoon,
   FiSun,
+  FiCalendar,
 } from "react-icons/fi";
 
 const Sidebar = () => {
@@ -19,7 +17,6 @@ const Sidebar = () => {
     setIsExpanded(!isExpanded);
   };
 
-  // Dark/Light theme management
   const [theme, setTheme] = useState<string>(getInitialTheme());
 
   useEffect(() => {
@@ -66,7 +63,7 @@ const Sidebar = () => {
         >
           {isExpanded ? (
             <h1 className="text-lg font-semibold text-primary dark:text-primary-light font-press">
-              SaloBook-Business
+              Da-Biznozz
             </h1>
           ) : (
             <div></div>
@@ -91,15 +88,6 @@ const Sidebar = () => {
           }`}
         >
           <div
-            className={`text-xs font-medium text-gray-400 dark:text-gray-500 py-2 px-4 ${
-              !isExpanded && "sr-only"
-            }`}
-          >
-            DASHBOARD
-          </div>
-          {renderNavLink("/overview", "Overview", <FiHome size={18} />)}
-
-          <div
             className={`text-xs font-medium text-gray-400 dark:text-gray-500 py-2 px-4 mt-4 ${
               !isExpanded && "sr-only"
             }`}
@@ -107,21 +95,22 @@ const Sidebar = () => {
             MANAGEMENT
           </div>
           {renderNavLink("/staff", "Staffs", <FiStar size={18} />)}
-          {renderNavLink("/service", "Services", <FiTarget size={18} />)}
-          {renderNavLink("/review", "Reviews", <FiMessageSquare size={18} />)}
-
-          {
-            <>
-              <div
-                className={`text-xs font-medium text-gray-400 dark:text-gray-500 py-2 px-4 mt-4 ${
-                  !isExpanded && "sr-only"
-                }`}
-              >
-                ADMIN
-              </div>
-              {renderNavLink("/settings", "Settings", <FiSettings size={18} />)}
-            </>
-          }
+          {renderNavLink(
+            "/appointments",
+            "Appointments",
+            <FiCalendar size={18} />
+          )}{" "}
+          {/* 🆕 Appointments */}
+          <>
+            <div
+              className={`text-xs font-medium text-gray-400 dark:text-gray-500 py-2 px-4 mt-4 ${
+                !isExpanded && "sr-only"
+              }`}
+            >
+              ADMIN
+            </div>
+            {renderNavLink("/settings", "Settings", <FiSettings size={18} />)}
+          </>
         </nav>
       </div>
 
