@@ -458,7 +458,7 @@ const StaffOverviewTab: React.FC<StaffOverviewTabProps> = ({ staff }) => {
                       </div>
                     ))}
 
-                    {/* Overlapping Time Off (partial) */}
+                    {/* Overlapping Time Off (partial)  */}
                     {overlappingTimeOff.map((timeOff, index) => (
                       <div
                         key={index}

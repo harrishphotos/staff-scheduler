@@ -23,7 +23,7 @@ const DateStrip: React.FC<DateStripProps> = ({
     d1.toDateString() === d2.toDateString();
 
   return (
-    <div className="flex gap-2 overflow-x-auto no-scrollbar py-2">
+    <div className="grid grid-cols-7 gap-2 w-full">
       {days.map((day) => {
         const isToday = isSameDay(day.date, new Date());
         const isSelected = selectedDate
@@ -34,22 +34,36 @@ const DateStrip: React.FC<DateStripProps> = ({
           <div
             key={day.date.toDateString()}
             onClick={() => onSelect(day.date)}
-            className={`min-w-[80px] p-2 rounded-lg cursor-pointer text-center border
+            className={`rounded-xl p-3 border text-center cursor-pointer transition-all duration-200
               ${
                 isToday
-                  ? "bg-blue-100 border-blue-400"
-                  : "bg-white border-gray-300"
+                  ? "bg-blue-50 dark:bg-blue-900/20 ring-2 ring-blue-500"
+                  : "bg-gray-50 dark:bg-gray-800"
               }
-              ${isSelected ? "ring-2 ring-blue-500 font-semibold" : ""}
-              hover:bg-blue-50`}
+              ${
+                isSelected
+                  ? "border-blue-500 font-semibold shadow-md"
+                  : "border-gray-200 dark:border-gray-600"
+              }
+              hover:bg-blue-100/30 dark:hover:bg-blue-900/30
+            `}
           >
-            <div className="text-xs text-gray-600">{day.dayInfo.short}</div>
-            <div className="text-xl">{day.dayNumber}</div>
-            {isToday && (
-              <div className="text-[10px] text-blue-600 mt-1 font-medium">
-                Today
-              </div>
-            )}
+            <div className="text-sm text-gray-600 dark:text-gray-300">
+              {day.dayInfo.short}
+            </div>
+            <div className="text-2xl text-gray-900 dark:text-white">
+              {day.dayNumber}
+            </div>
+            <div
+              className="text-[10px] mt-1 font-medium"
+              style={{ minHeight: "14px" }}
+            >
+              {isToday ? (
+                <span className="text-blue-600 dark:text-blue-300">Today</span>
+              ) : (
+                <span className="invisible">Today</span>
+              )}
+            </div>
           </div>
         );
       })}
