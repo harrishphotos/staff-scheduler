@@ -12,6 +12,7 @@ interface SelectedDatePanelProps {
   onAddSchedule?: (start: string, end: string) => void;
 }
 
+// Unified block type definition for rendering
 type Block =
   | { id: string; type: "break"; start: string; end: string }
   | { id: string; type: "timeoff"; start: string; end: string; reason: string };
@@ -27,6 +28,7 @@ const SelectedDatePanel: React.FC<SelectedDatePanelProps> = ({
   const dayOfWeek = selectedDate.getDay();
   const dateStr = selectedDate.toISOString().split("T")[0];
 
+  // Filter weekly schedules valid for the selected date
   const schedules = (weeklySchedule[dayOfWeek] || []).filter((schedule) => {
     return (
       dateStr >= schedule.valid_from &&
@@ -34,9 +36,10 @@ const SelectedDatePanel: React.FC<SelectedDatePanelProps> = ({
     );
   });
 
+  // Get recurring breaks for that day of the week
   const breaks = recurringBreaksByDay[dayOfWeek] || [];
 
-  // ✅ FIXED block filtering by comparing DATE only
+  // Get one-time blocks that fall on the selected date
   const blocks = onetimeBlocks.filter((block) => {
     const blockStartDate = new Date(block.start_date_time)
       .toISOString()
@@ -47,10 +50,12 @@ const SelectedDatePanel: React.FC<SelectedDatePanelProps> = ({
     return dateStr >= blockStartDate && dateStr <= blockEndDate;
   });
 
+  // Timeline configuration
   const timelineStartHour = 8;
   const timelineEndHour = 20;
   const totalMinutes = (timelineEndHour - timelineStartHour) * 60;
 
+  // Converts Date to HH:MM format
   const formatTimeToHHMM = (date: Date): string => {
     return `${date.getHours().toString().padStart(2, "0")}:${date
       .getMinutes()
@@ -58,6 +63,7 @@ const SelectedDatePanel: React.FC<SelectedDatePanelProps> = ({
       .padStart(2, "0")}`;
   };
 
+  // Computes inline positioning for a block
   const getPositionStyle = (startTime: string, endTime: string) => {
     const [sh, sm] = startTime.split(":").map(Number);
     const [eh, em] = endTime.split(":").map(Number);
@@ -75,6 +81,7 @@ const SelectedDatePanel: React.FC<SelectedDatePanelProps> = ({
     };
   };
 
+  // Combine recurring breaks and one-time blocks
   const allBlocks: Block[] = [
     ...breaks.map(
       (b) =>
@@ -97,12 +104,14 @@ const SelectedDatePanel: React.FC<SelectedDatePanelProps> = ({
     ),
   ];
 
+  // Sort blocks by start time
   const sortedBlocks = allBlocks.slice().sort((a, b) => {
     const [aH, aM] = a.start.split(":").map(Number);
     const [bH, bM] = b.start.split(":").map(Number);
     return aH !== bH ? aH - bH : aM - bM;
   });
 
+  // Calculate gaps between blocks for 'Add' slots
   const freeSlots: { start: string; end: string }[] = [];
   let lastEnd = `${timelineStartHour.toString().padStart(2, "0")}:00`;
 
@@ -119,11 +128,12 @@ const SelectedDatePanel: React.FC<SelectedDatePanelProps> = ({
 
   return (
     <div className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg p-4 mt-4 space-y-4">
+      {/* Header showing selected date */}
       <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
         Schedule for {selectedDate.toDateString()}
       </h3>
 
-      {/* Schedule Time Info Section */}
+      {/* Work schedule overview */}
       {schedules.length > 0 && (
         <div className="text-sm text-gray-700 dark:text-gray-300">
           <p className="font-medium mb-1">Planned Work Schedule:</p>
@@ -136,35 +146,30 @@ const SelectedDatePanel: React.FC<SelectedDatePanelProps> = ({
         </div>
       )}
 
-      {/* Timeline Strip */}
-      <div className="relative w-full h-16 border rounded bg-gray-50 dark:bg-gray-700 overflow-hidden">
-        {[...Array(timelineEndHour - timelineStartHour)].map((_, i) => (
-          <div
-            key={i}
-            className="absolute top-0 bottom-0 w-px bg-gray-300 dark:bg-gray-600"
-            style={{
-              left: `${(i / (timelineEndHour - timelineStartHour)) * 100}%`,
-            }}
-          />
-        ))}
-
+      {/* Timeline strip with blocks */}
+      <div className="relative w-full h-16 border rounded bg-gray-50 dark:bg-gray-700 overflow-visible">
+        {/* Render all schedule blocks */}
         {sortedBlocks.map((block) => (
           <div
             key={`${block.type}-${block.id}`}
-            className={`absolute top-1 bottom-1 px-2 text-xs flex items-center rounded text-white shadow-sm
-              ${block.type === "break" ? "bg-orange-500" : "bg-red-500"}`}
+            className={`group absolute top-1 bottom-1 px-2 text-xs flex items-center justify-center rounded text-white shadow-sm ${
+              block.type === "break" ? "bg-orange-500" : "bg-red-500"
+            }`}
             style={getPositionStyle(block.start, block.end)}
           >
+            {/* Time range text inside the block */}
             {availabilityHelpers.formatTime(block.start)} -{" "}
             {availabilityHelpers.formatTime(block.end)}
+            {/* Hover tooltip for timeoff reason */}
             {block.type === "timeoff" && (
-              <span className="ml-1 text-[10px] italic text-white opacity-90">
-                ({block.reason})
-              </span>
+              <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 bg-gray-800 text-white text-[10px] px-2 py-1 rounded shadow-md opacity-0 group-hover:opacity-100 transition-opacity z-50 whitespace-nowrap">
+                {block.reason}
+              </div>
             )}
           </div>
         ))}
 
+        {/* Free slot buttons */}
         {freeSlots.map((slot, idx) => (
           <div
             key={idx}
