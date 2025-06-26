@@ -36,15 +36,27 @@ const SelectedDatePanel: React.FC<SelectedDatePanelProps> = ({
 
   const breaks = recurringBreaksByDay[dayOfWeek] || [];
 
+  // ✅ FIXED block filtering by comparing DATE only
   const blocks = onetimeBlocks.filter((block) => {
-    const start = new Date(block.start_date_time);
-    const end = new Date(block.end_date_time);
-    return selectedDate >= start && selectedDate <= end;
+    const blockStartDate = new Date(block.start_date_time)
+      .toISOString()
+      .split("T")[0];
+    const blockEndDate = new Date(block.end_date_time)
+      .toISOString()
+      .split("T")[0];
+    return dateStr >= blockStartDate && dateStr <= blockEndDate;
   });
 
   const timelineStartHour = 8;
   const timelineEndHour = 20;
   const totalMinutes = (timelineEndHour - timelineStartHour) * 60;
+
+  const formatTimeToHHMM = (date: Date): string => {
+    return `${date.getHours().toString().padStart(2, "0")}:${date
+      .getMinutes()
+      .toString()
+      .padStart(2, "0")}`;
+  };
 
   const getPositionStyle = (startTime: string, endTime: string) => {
     const [sh, sm] = startTime.split(":").map(Number);
@@ -53,12 +65,14 @@ const SelectedDatePanel: React.FC<SelectedDatePanelProps> = ({
     const startOffsetMins = sh * 60 + sm - timelineStartHour * 60;
     const endOffsetMins = eh * 60 + em - timelineStartHour * 60;
 
-    const left = `${(startOffsetMins / totalMinutes) * 100}%`;
-    const width = `${
-      ((endOffsetMins - startOffsetMins) / totalMinutes) * 100
-    }%`;
+    const leftPct = (startOffsetMins / totalMinutes) * 100;
+    const widthPct = ((endOffsetMins - startOffsetMins) / totalMinutes) * 100;
 
-    return { left, width };
+    return {
+      left: `${leftPct}%`,
+      width: widthPct < 1 ? "1.5%" : `${widthPct}%`,
+      minWidth: "10px",
+    };
   };
 
   const allBlocks: Block[] = [
@@ -76,8 +90,8 @@ const SelectedDatePanel: React.FC<SelectedDatePanelProps> = ({
         ({
           type: "timeoff",
           id: b.id,
-          start: new Date(b.start_date_time).toTimeString().slice(0, 5),
-          end: new Date(b.end_date_time).toTimeString().slice(0, 5),
+          start: formatTimeToHHMM(new Date(b.start_date_time)),
+          end: formatTimeToHHMM(new Date(b.end_date_time)),
           reason: b.reason,
         } as Block)
     ),
