@@ -124,8 +124,21 @@ func forwardRequest(c *fiber.Ctx, targetBaseURL string) error {
 		})
 	}
 	
-	// Copy response headers
+	// Copy response headers (excluding CORS headers since gateway handles them)
+	corsHeaders := map[string]bool{
+		"Access-Control-Allow-Origin":      true,
+		"Access-Control-Allow-Methods":     true,
+		"Access-Control-Allow-Headers":     true,
+		"Access-Control-Allow-Credentials": true,
+		"Access-Control-Expose-Headers":    true,
+		"Access-Control-Max-Age":           true,
+	}
+	
 	for key, values := range resp.Header {
+		// Skip CORS headers since they're handled by the gateway
+		if corsHeaders[key] {
+			continue
+		}
 		for _, value := range values {
 			c.Response().Header.Add(key, value)
 		}

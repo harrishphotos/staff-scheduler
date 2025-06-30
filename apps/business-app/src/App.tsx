@@ -12,21 +12,28 @@ import StaffManagement from "./pages/StaffManagement";
 import Settings from "./pages/Settings";
 import StaffAvailability from "./components/staff/views/StaffAvailability";
 import Appointments from "./pages/Appointments";
+import RequireAuth from "./routes/RequireAuth";
+import Login from "./pages/auth/Login";
 
 const App: React.FC = () => {
   return (
     <BrowserRouter>
       <Toaster position="top-right" />
       <Routes>
-        <Route path="/" element={<AdminLayout />}>
-          <Route index element={<Navigate to="overview" />} />
-          <Route path="staff" element={<StaffManagement />} />
-          <Route
-            path="staff/:staffId/availability"
-            element={<StaffAvailability />}
-          />
-          <Route path="settings" element={<Settings />} />
-          <Route path="appointments" element={<Appointments />} />
+        <Route path="/login" element={<Login />} />
+
+        {/* Protected routes */}
+        <Route element={<RequireAuth />}>
+          <Route path="/" element={<AdminLayout />}>
+            <Route index element={<Navigate to="overview" />} />
+            <Route path="staff" element={<StaffManagement />} />
+            <Route
+              path="staff/:staffId/availability"
+              element={<StaffAvailability />}
+            />
+            <Route path="settings" element={<Settings />} />
+            <Route path="appointments" element={<Appointments />} />
+          </Route>
         </Route>
       </Routes>
     </BrowserRouter>

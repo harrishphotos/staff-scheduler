@@ -35,6 +35,7 @@
     "react-redux": "^9.2.0",
     "react-router-dom": "^7.6.0",
     "react-window": "^1.8.11",
+    "redux-persist": "^6.0.0",
     "tailwind-merge": "^3.3.0",
     "tailwindcss": "^4.1.7"
   },
