@@ -33,7 +33,7 @@ const App: React.FC = () => {
         {/* Protected routes */}
         <Route element={<RequireAuth />}>
           <Route path="/" element={<AdminLayout />}>
-            <Route index element={<Navigate to="overview" />} />
+            <Route index element={<Navigate to="staff" />} />
             <Route path="staff" element={<StaffManagement />} />
             <Route
               path="staff/:staffId/availability"
