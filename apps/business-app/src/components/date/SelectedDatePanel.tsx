@@ -6,159 +6,225 @@ import {
   selectOnetimeBlocks,
 } from "../../store/slices/availabilitySlice";
 import { availabilityHelpers } from "../../utils/availabilityApi";
+import {
+  Schedule,
+  RecurringBreak,
+  OnetimeBlock,
+} from "../../types/availability";
 
 interface SelectedDatePanelProps {
   selectedDate: Date;
   onAddSchedule?: (start: string, end: string) => void;
 }
 
-type Block =
-  | { id: string; type: "break"; start: string; end: string }
-  | { id: string; type: "timeoff"; start: string; end: string; reason: string };
-
 const SelectedDatePanel: React.FC<SelectedDatePanelProps> = ({
   selectedDate,
   onAddSchedule,
 }) => {
+  const dayOfWeek = selectedDate.getDay();
   const weeklySchedule = useSelector(selectWeeklySchedule);
-  const recurringBreaksByDay = useSelector(selectRecurringBreaksByDay);
+  const breaksByDay = useSelector(selectRecurringBreaksByDay);
   const onetimeBlocks = useSelector(selectOnetimeBlocks);
 
-  const dayOfWeek = selectedDate.getDay();
-  const dateStr = selectedDate.toISOString().split("T")[0];
+  const schedule = weeklySchedule[dayOfWeek]?.[0] || null;
+  const dayBreaks = breaksByDay[dayOfWeek] || [];
 
-  const schedules = (weeklySchedule[dayOfWeek] || []).filter((schedule) => {
+  const timeOffs = onetimeBlocks.filter((block) => {
+    const blockDate = new Date(block.start_date_time);
     return (
-      dateStr >= schedule.valid_from &&
-      (!schedule.valid_until || dateStr <= schedule.valid_until)
+      blockDate.toDateString() === selectedDate.toDateString() &&
+      block.type === "timeoff"
     );
   });
 
-  const breaks = recurringBreaksByDay[dayOfWeek] || [];
-
-  const blocks = onetimeBlocks.filter((block) => {
-    const start = new Date(block.start_date_time);
-    const end = new Date(block.end_date_time);
-    return selectedDate >= start && selectedDate <= end;
+  const appointments = onetimeBlocks.filter((block) => {
+    const blockDate = new Date(block.start_date_time);
+    return (
+      blockDate.toDateString() === selectedDate.toDateString() &&
+      block.type === "appointment"
+    );
   });
 
-  const timelineStartHour = 8;
-  const timelineEndHour = 20;
-  const totalMinutes = (timelineEndHour - timelineStartHour) * 60;
+  const allBlocks = [
+    ...dayBreaks.map((b) => {
+      try {
+        const parsedStart = new Date(b.start_time);
+        const parsedEnd = new Date(b.end_time);
 
-  const getPositionStyle = (startTime: string, endTime: string) => {
-    const [sh, sm] = startTime.split(":").map(Number);
-    const [eh, em] = endTime.split(":").map(Number);
+        const start = new Date(selectedDate);
+        const end = new Date(selectedDate);
 
-    const startOffsetMins = sh * 60 + sm - timelineStartHour * 60;
-    const endOffsetMins = eh * 60 + em - timelineStartHour * 60;
+        start.setHours(parsedStart.getHours(), parsedStart.getMinutes(), 0, 0);
+        end.setHours(parsedEnd.getHours(), parsedEnd.getMinutes(), 0, 0);
 
-    const left = `${(startOffsetMins / totalMinutes) * 100}%`;
-    const width = `${
-      ((endOffsetMins - startOffsetMins) / totalMinutes) * 100
-    }%`;
-
-    return { left, width };
-  };
-
-  const allBlocks: Block[] = [
-    ...breaks.map(
-      (b) =>
-        ({
-          type: "break",
+        return {
           id: b.id,
-          start: b.start_time,
-          end: b.end_time,
-        } as Block)
-    ),
-    ...blocks.map(
-      (b) =>
-        ({
-          type: "timeoff",
-          id: b.id,
-          start: new Date(b.start_date_time).toTimeString().slice(0, 5),
-          end: new Date(b.end_date_time).toTimeString().slice(0, 5),
-          reason: b.reason,
-        } as Block)
-    ),
-  ];
+          type: "break" as const,
+          start: start.toISOString(),
+          end: end.toISOString(),
+        };
+      } catch (err) {
+        console.error("❌ Error parsing break:", b, err);
+        return null;
+      }
+    }),
 
-  const sortedBlocks = allBlocks.slice().sort((a, b) => {
-    const [aH, aM] = a.start.split(":").map(Number);
-    const [bH, bM] = b.start.split(":").map(Number);
-    return aH !== bH ? aH - bH : aM - bM;
-  });
+    ...timeOffs.map((b) => ({
+      id: b.id,
+      type: "timeoff" as const,
+      start: b.start_date_time,
+      end: b.end_date_time,
+      reason: b.reason,
+    })),
+    ...appointments.map((b) => ({
+      id: b.id,
+      type: "appointment" as const,
+      start: b.start_date_time,
+      end: b.end_date_time,
+      reason: b.reason,
+    })),
+  ].filter((b): b is Exclude<typeof b, null> => b !== null);
 
-  const freeSlots: { start: string; end: string }[] = [];
-  let lastEnd = `${timelineStartHour.toString().padStart(2, "0")}:00`;
+  const sortedBlocks = allBlocks.sort(
+    (a, b) => new Date(a.start).getTime() - new Date(b.start).getTime()
+  );
 
-  sortedBlocks.forEach((block) => {
-    if (block.start > lastEnd) {
-      freeSlots.push({ start: lastEnd, end: block.start });
+  // 🕘 Dynamic schedule bounds
+  let scheduleStartMinutes = 0;
+  let scheduleEndMinutes = 1440;
+  let totalScheduleMinutes = 1440;
+
+  if (schedule) {
+    try {
+      const scheduleStart = new Date(selectedDate);
+      const scheduleEnd = new Date(selectedDate);
+
+      const parsedStart = new Date(schedule.start_time);
+      const parsedEnd = new Date(schedule.end_time);
+
+      scheduleStart.setHours(
+        parsedStart.getHours(),
+        parsedStart.getMinutes(),
+        0,
+        0
+      );
+      scheduleEnd.setHours(parsedEnd.getHours(), parsedEnd.getMinutes(), 0, 0);
+
+      const startMin =
+        scheduleStart.getHours() * 60 + scheduleStart.getMinutes();
+      const endMin = scheduleEnd.getHours() * 60 + scheduleEnd.getMinutes();
+
+      if (isNaN(startMin) || isNaN(endMin)) {
+        console.warn("❌ Invalid schedule time", schedule);
+      } else {
+        scheduleStartMinutes = startMin;
+        scheduleEndMinutes = endMin;
+        totalScheduleMinutes = Math.max(endMin - startMin, 1);
+        console.log("✅ Schedule Minutes", {
+          scheduleStartMinutes,
+          scheduleEndMinutes,
+          totalScheduleMinutes,
+        });
+      }
+    } catch (err) {
+      console.error("❌ Schedule parse error", err);
     }
-    if (block.end > lastEnd) lastEnd = block.end;
-  });
-
-  if (lastEnd < `${timelineEndHour}:00`) {
-    freeSlots.push({ start: lastEnd, end: `${timelineEndHour}:00` });
   }
 
-  return (
-    <div className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg p-4 mt-4 space-y-4">
-      <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-        Schedule for {selectedDate.toDateString()}
-      </h3>
+  // 🧠 Grid helper (15-min steps)
+  const snapToGrid = (minutes: number) => {
+    return Math.round(minutes / 15) * 15;
+  };
 
-      {/* Schedule Time Info Section */}
-      {schedules.length > 0 && (
-        <div className="text-sm text-gray-700 dark:text-gray-300">
-          <p className="font-medium mb-1">Planned Work Schedule:</p>
-          {schedules.map((s) => (
-            <div key={s.id} className="mb-1">
-              {availabilityHelpers.formatTime(s.start_time)} -{" "}
-              {availabilityHelpers.formatTime(s.end_time)}
-            </div>
-          ))}
+  return (
+    <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-md space-y-3">
+      <h2 className="text-lg font-semibold">{selectedDate.toDateString()}</h2>
+
+      {schedule ? (
+        <div className="text-sm bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-200 p-2 rounded">
+          Schedule: {availabilityHelpers.formatTime(schedule.start_time)} -{" "}
+          {availabilityHelpers.formatTime(schedule.end_time)}
+        </div>
+      ) : (
+        <div className="text-sm text-gray-500 dark:text-gray-400">
+          No schedule
         </div>
       )}
 
-      {/* Timeline Strip */}
-      <div className="relative w-full h-16 border rounded bg-gray-50 dark:bg-gray-700 overflow-hidden">
-        {[...Array(timelineEndHour - timelineStartHour)].map((_, i) => (
-          <div
-            key={i}
-            className="absolute top-0 bottom-0 w-px bg-gray-300 dark:bg-gray-600"
-            style={{
-              left: `${(i / (timelineEndHour - timelineStartHour)) * 100}%`,
-            }}
-          />
-        ))}
+      {/* 🟪 Strip with 15-min snapping */}
+      <div className="relative h-14 bg-gray-100 dark:bg-gray-700 rounded overflow-hidden">
+        <div className="absolute top-1/2 left-0 w-full h-0.5 bg-gray-300 dark:bg-gray-600"></div>
 
+        {sortedBlocks.map((block) => {
+          const blockStart = new Date(block.start);
+          const blockEnd = new Date(block.end);
+
+          const startMin = blockStart.getHours() * 60 + blockStart.getMinutes();
+          const endMin = blockEnd.getHours() * 60 + blockEnd.getMinutes();
+          console.log(`[${block.type}]`, {
+            start: block.start,
+            parsed: new Date(block.start),
+            startMin,
+          });
+          if (
+            startMin >= scheduleEndMinutes ||
+            endMin <= scheduleStartMinutes
+          ) {
+            return null; // block is outside schedule range
+          }
+
+          const snappedStart = snapToGrid(
+            Math.max(startMin, scheduleStartMinutes)
+          );
+          const snappedEnd = snapToGrid(Math.min(endMin, scheduleEndMinutes));
+
+          const relativeStart = snappedStart - scheduleStartMinutes;
+          const relativeDuration = snappedEnd - snappedStart;
+
+          const leftPercent = (relativeStart / totalScheduleMinutes) * 100;
+          const widthPercent = (relativeDuration / totalScheduleMinutes) * 100;
+
+          if (relativeDuration <= 0) return null;
+
+          // TEMP DEBUG
+          console.log(
+            `[${
+              block.type
+            }] starts at: ${snappedStart}, relative: ${relativeStart}, %: ${leftPercent.toFixed(
+              2
+            )}`
+          );
+
+          let bgColor = "";
+          if (block.type === "break") bgColor = "bg-orange-400";
+          if (block.type === "timeoff") bgColor = "bg-red-500";
+          if (block.type === "appointment") bgColor = "bg-green-500";
+
+          return (
+            <div
+              key={block.id}
+              className={`${bgColor} absolute top-1 h-10 rounded text-xs text-white px-1 flex items-center`}
+              style={{
+                left: `${leftPercent}%`,
+                width: `${widthPercent}%`,
+              }}
+            >
+              {block.type}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* 🟩 Detail list */}
+      <div className="space-y-1 text-sm">
         {sortedBlocks.map((block) => (
-          <div
-            key={`${block.type}-${block.id}`}
-            className={`absolute top-1 bottom-1 px-2 text-xs flex items-center rounded text-white shadow-sm
-              ${block.type === "break" ? "bg-orange-500" : "bg-red-500"}`}
-            style={getPositionStyle(block.start, block.end)}
-          >
+          <div key={block.id} className="text-xs">
+            {block.type.charAt(0).toUpperCase() + block.type.slice(1)}:{" "}
             {availabilityHelpers.formatTime(block.start)} -{" "}
-            {availabilityHelpers.formatTime(block.end)}
-            {block.type === "timeoff" && (
-              <span className="ml-1 text-[10px] italic text-white opacity-90">
-                ({block.reason})
-              </span>
+            {availabilityHelpers.formatTime(block.end)}{" "}
+            {"reason" in block && block.reason && (
+              <span className="text-gray-500">({block.reason})</span>
             )}
-          </div>
-        ))}
-
-        {freeSlots.map((slot, idx) => (
-          <div
-            key={idx}
-            className="absolute top-1/2 -translate-y-1/2 text-gray-500 hover:text-blue-600 text-xs flex items-center justify-center cursor-pointer"
-            style={{ ...getPositionStyle(slot.start, slot.end) }}
-            onClick={() => onAddSchedule?.(slot.start, slot.end)}
-          >
-            ➕ Add
           </div>
         ))}
       </div>

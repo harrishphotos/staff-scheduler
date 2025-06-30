@@ -363,7 +363,6 @@ const StaffOverviewTab: React.FC<StaffOverviewTabProps> = ({ staff }) => {
           <SelectedDatePanel
             selectedDate={selectedDate}
             onAddSchedule={(start, end) => {
-              // You can open your modal here and pass the times
               console.log("Open modal for:", start, end);
             }}
           />
