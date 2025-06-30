@@ -1,7 +1,8 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from "axios";
 
 // dynamic env value; fallback to gateway at 8081
-const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8081";
+const BASE_URL =
+  import.meta.env.VITE_API_URL || "https://staff-api-gateway.onrender.com";
 
 // We'll get the store reference dynamically to avoid circular dependency
 let store: any = null;
