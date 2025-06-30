@@ -65,11 +65,14 @@ func main() {
 	handler.SetupRoutes(app)
 
 	// Get service-specific port or use default
-	port := os.Getenv("AUTH_SERVICE_PORT")
+	port := os.Getenv("PORT") // Render's standard PORT variable
 	if port == "" {
-		port = os.Getenv("DEFAULT_PORT")
+		port = os.Getenv("AUTH_SERVICE_PORT")
 		if port == "" {
-			port = "3004" // Default port for auth service
+			port = os.Getenv("DEFAULT_PORT")
+			if port == "" {
+				port = "3004" // Default port for auth service
+			}
 		}
 	}
 

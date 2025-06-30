@@ -72,11 +72,14 @@ func main() {
 
 
     // Get service-specific port or use default
-    port := os.Getenv("EMPLOYEE_SERVICE_PORT")
+    port := os.Getenv("PORT") // Render's standard PORT variable
     if port == "" {
-        port = os.Getenv("DEFAULT_PORT")
+        port = os.Getenv("EMPLOYEE_SERVICE_PORT")
         if port == "" {
-            port = "3002" // Fallback for employee service
+            port = os.Getenv("DEFAULT_PORT")
+            if port == "" {
+                port = "3002" // Fallback for employee service
+            }
         }
     }
 

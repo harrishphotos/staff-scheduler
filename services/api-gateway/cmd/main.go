@@ -41,9 +41,12 @@ func main() {
 	handler.SetupRoutes(app)
 
 	// Get service-specific port or use default
-	port := os.Getenv("GATEWAY_PORT")
+	port := os.Getenv("PORT") // Render's standard PORT variable
 	if port == "" {
-		port = "8081" // Default port for API Gateway
+		port = os.Getenv("GATEWAY_PORT")
+		if port == "" {
+			port = "8081" // Default port for API Gateway
+		}
 	}
 
 	utils.Info("API Gateway running on port " + port)
