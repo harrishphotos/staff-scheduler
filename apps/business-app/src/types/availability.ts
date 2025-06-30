@@ -26,6 +26,7 @@ export interface RecurringBreak {
 }
 
 export interface OnetimeBlock {
+  type: string;
   id: string;
   employee_id: string;
   start_date_time: string; // ISO string
