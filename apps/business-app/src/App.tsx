@@ -14,6 +14,10 @@ import StaffAvailability from "./components/staff/views/StaffAvailability";
 import Appointments from "./pages/Appointments";
 import RequireAuth from "./routes/RequireAuth";
 import Login from "./pages/auth/Login";
+import Register from "./pages/auth/Register";
+import VerifyEmail from "./pages/auth/VerifyEmail";
+import ForgotPassword from "./pages/auth/ForgotPassword";
+import ResetPassword from "./pages/auth/ResetPassword";
 
 const App: React.FC = () => {
   return (
@@ -21,6 +25,10 @@ const App: React.FC = () => {
       <Toaster position="top-right" />
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/verify-email" element={<VerifyEmail />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
 
         {/* Protected routes */}
         <Route element={<RequireAuth />}>

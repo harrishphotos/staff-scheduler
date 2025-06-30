@@ -11,14 +11,20 @@ interface AuthState {
   user: User | null;
   accessToken: string | null;
   status: "idle" | "loading" | "succeeded" | "failed";
+  registerStatus: "idle" | "loading" | "succeeded" | "failed";
   error: string | null;
+  registerError: string | null;
+  registerMessage: string | null;
 }
 
 const initialState: AuthState = {
   user: null,
   accessToken: null,
   status: "idle",
+  registerStatus: "idle",
   error: null,
+  registerError: null,
+  registerMessage: null,
 };
 
 // Base URL pulled from Vite env – falls back to gateway default on 8081.
@@ -45,6 +51,34 @@ export const login = createAsyncThunk(
       return await response.json();
     } catch (err: any) {
       return rejectWithValue("Login failed");
+    }
+  }
+);
+
+export const register = createAsyncThunk(
+  "auth/register",
+  async (
+    userData: { email: string; username: string; password: string },
+    { rejectWithValue }
+  ) => {
+    try {
+      const response = await fetch(`${API_URL}/api/auth/register`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify(userData),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        return rejectWithValue(errorData.error || "Registration failed");
+      }
+
+      return await response.json();
+    } catch (err: any) {
+      return rejectWithValue("Registration failed");
     }
   }
 );
@@ -105,11 +139,18 @@ const authSlice = createSlice({
       state.user = null;
       state.accessToken = null;
     },
+    clearRegisterState: (state) => {
+      state.registerStatus = "idle";
+      state.registerError = null;
+      state.registerMessage = null;
+    },
   },
   extraReducers: (builder) => {
     builder
+      // Login cases
       .addCase(login.pending, (state) => {
         state.status = "loading";
+        state.error = null;
       })
       .addCase(login.fulfilled, (state, action: any) => {
         state.status = "succeeded";
@@ -121,6 +162,25 @@ const authSlice = createSlice({
         state.status = "failed";
         state.error = action.payload as string;
       })
+
+      // Register cases
+      .addCase(register.pending, (state) => {
+        state.registerStatus = "loading";
+        state.registerError = null;
+        state.registerMessage = null;
+      })
+      .addCase(register.fulfilled, (state, action: any) => {
+        state.registerStatus = "succeeded";
+        state.registerMessage = action.payload.message;
+        state.registerError = null;
+      })
+      .addCase(register.rejected, (state, action) => {
+        state.registerStatus = "failed";
+        state.registerError = action.payload as string;
+        state.registerMessage = null;
+      })
+
+      // Other cases
       .addCase(refresh.fulfilled, (state, action: any) => {
         state.accessToken = action.payload.access_token;
         state.user = action.payload.user;
@@ -132,5 +192,6 @@ const authSlice = createSlice({
   },
 });
 
-export const { setCredentials, clearAuth } = authSlice.actions;
+export const { setCredentials, clearAuth, clearRegisterState } =
+  authSlice.actions;
 export default authSlice.reducer;
