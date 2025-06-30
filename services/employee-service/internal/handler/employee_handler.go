@@ -11,6 +11,14 @@ import (
 
 // SetupEmployeeRoutes configures the routes for employee management
 func SetupEmployeeRoutes(app *fiber.App) {
+	// Health check endpoint
+	app.Get("/health", func(c *fiber.Ctx) error {
+		return c.JSON(fiber.Map{
+			"status": "healthy",
+			"service": "employee-service",
+		})
+	})
+
 	// Create a new employee
 	app.Post("/employees", func(c *fiber.Ctx) error {
 		var input struct {
