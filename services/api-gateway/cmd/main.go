@@ -23,10 +23,18 @@ func main() {
 
 	// Add middleware
 	app.Use(logger.New())
+	
+	// Get CORS origins from environment variable or use defaults
+	allowedOrigins := os.Getenv("ALLOWED_ORIGINS")
+	if allowedOrigins == "" {
+		allowedOrigins = "http://localhost:5173,http://localhost:3000,http://localhost:4173" // Default for development
+	}
+	
 	app.Use(cors.New(cors.Config{
-		AllowOrigins: "*",
-		AllowMethods: "GET,POST,PUT,DELETE,OPTIONS",
-		AllowHeaders: "Origin, Content-Type, Accept, Authorization",
+		AllowOrigins:     allowedOrigins,
+		AllowMethods:     "GET,POST,PUT,DELETE,OPTIONS",
+		AllowHeaders:     "Origin, Content-Type, Accept, Authorization",
+		AllowCredentials: true,
 	}))
 
 	// Setup routes

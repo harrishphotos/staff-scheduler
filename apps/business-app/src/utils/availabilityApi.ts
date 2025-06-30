@@ -8,8 +8,7 @@ import {
   AvailabilityRequest,
   AvailabilityResponse,
 } from "../types/availability";
-
-const EMPLOYEE_API_BASE = "http://localhost:3002";
+import axiosInstance from "../api/axios";
 
 export const availabilityAPI = {
   // Schedule Management
@@ -24,25 +23,19 @@ export const availabilityAPI = {
       if (dayOfWeek !== undefined)
         params.append("dayofweek", dayOfWeek.toString());
 
-      const response = await fetch(`${EMPLOYEE_API_BASE}/schedules?${params}`);
-      if (!response.ok) {
-        throw new Error("Failed to fetch schedules");
-      }
-      return response.json();
+      const { data } = await axiosInstance.get<Schedule[]>(
+        `/api/schedules?${params}`
+      );
+      return data;
     },
 
     // Create new schedule
     create: async (schedule: CreateScheduleRequest): Promise<Schedule> => {
-      const response = await fetch(`${EMPLOYEE_API_BASE}/schedules`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(schedule),
-      });
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to create schedule");
-      }
-      return response.json();
+      const { data } = await axiosInstance.post<Schedule>(
+        "/api/schedules",
+        schedule
+      );
+      return data;
     },
 
     // Get schedules for specific employee
@@ -52,16 +45,7 @@ export const availabilityAPI = {
 
     // Delete schedule
     delete: async (scheduleId: string): Promise<void> => {
-      const response = await fetch(
-        `${EMPLOYEE_API_BASE}/schedules/${scheduleId}`,
-        {
-          method: "DELETE",
-        }
-      );
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to delete schedule");
-      }
+      await axiosInstance.delete(`/api/schedules/${scheduleId}`);
     },
   },
 
@@ -77,29 +61,21 @@ export const availabilityAPI = {
       if (dayOfWeek !== undefined)
         params.append("dayofweek", dayOfWeek.toString());
 
-      const response = await fetch(
-        `${EMPLOYEE_API_BASE}/recurring-breaks?${params}`
+      const { data } = await axiosInstance.get<RecurringBreak[]>(
+        `/api/recurring-breaks?${params}`
       );
-      if (!response.ok) {
-        throw new Error("Failed to fetch recurring breaks");
-      }
-      return response.json();
+      return data;
     },
 
     // Create new recurring break
     create: async (
       breakData: CreateRecurringBreakRequest
     ): Promise<RecurringBreak> => {
-      const response = await fetch(`${EMPLOYEE_API_BASE}/recurring-breaks`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(breakData),
-      });
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to create recurring break");
-      }
-      return response.json();
+      const { data } = await axiosInstance.post<RecurringBreak>(
+        "/api/recurring-breaks",
+        breakData
+      );
+      return data;
     },
 
     // Get recurring breaks for specific employee
@@ -109,16 +85,7 @@ export const availabilityAPI = {
 
     // Delete recurring break
     delete: async (breakId: string): Promise<void> => {
-      const response = await fetch(
-        `${EMPLOYEE_API_BASE}/recurring-breaks/${breakId}`,
-        {
-          method: "DELETE",
-        }
-      );
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to delete recurring break");
-      }
+      await axiosInstance.delete(`/api/recurring-breaks/${breakId}`);
     },
   },
 
@@ -135,29 +102,21 @@ export const availabilityAPI = {
       if (startDate) params.append("start_date", startDate);
       if (endDate) params.append("end_date", endDate);
 
-      const response = await fetch(
-        `${EMPLOYEE_API_BASE}/onetime-blocks?${params}`
+      const { data } = await axiosInstance.get<OnetimeBlock[]>(
+        `/api/onetime-blocks?${params}`
       );
-      if (!response.ok) {
-        throw new Error("Failed to fetch one-time blocks");
-      }
-      return response.json();
+      return data;
     },
 
     // Create new one-time block
     create: async (
       blockData: CreateOnetimeBlockRequest
     ): Promise<OnetimeBlock> => {
-      const response = await fetch(`${EMPLOYEE_API_BASE}/onetime-blocks`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(blockData),
-      });
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to create one-time block");
-      }
-      return response.json();
+      const { data } = await axiosInstance.post<OnetimeBlock>(
+        "/api/onetime-blocks",
+        blockData
+      );
+      return data;
     },
 
     // Get one-time blocks for specific employee
@@ -170,33 +129,16 @@ export const availabilityAPI = {
       blockId: string,
       blockData: CreateOnetimeBlockRequest
     ): Promise<OnetimeBlock> => {
-      const response = await fetch(
-        `${EMPLOYEE_API_BASE}/onetime-blocks/${blockId}`,
-        {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(blockData),
-        }
+      const { data } = await axiosInstance.put<OnetimeBlock>(
+        `/api/onetime-blocks/${blockId}`,
+        blockData
       );
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to update one-time block");
-      }
-      return response.json();
+      return data;
     },
 
     // Delete one-time block
     delete: async (blockId: string): Promise<void> => {
-      const response = await fetch(
-        `${EMPLOYEE_API_BASE}/onetime-blocks/${blockId}`,
-        {
-          method: "DELETE",
-        }
-      );
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to delete one-time block");
-      }
+      await axiosInstance.delete(`/api/onetime-blocks/${blockId}`);
     },
   },
 
@@ -206,19 +148,11 @@ export const availabilityAPI = {
     check: async (
       request: AvailabilityRequest
     ): Promise<AvailabilityResponse[]> => {
-      const response = await fetch(
-        `${EMPLOYEE_API_BASE}/employees/availability`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(request),
-        }
+      const { data } = await axiosInstance.post<AvailabilityResponse[]>(
+        "/api/employees/availability",
+        request
       );
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to check availability");
-      }
-      return response.json();
+      return data;
     },
   },
 };

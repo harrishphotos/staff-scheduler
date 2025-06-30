@@ -294,9 +294,31 @@ func VerifyEmail(c *fiber.Ctx) error {
 	}
 
 	var user model.User
-	if err := db.DB.Where("verification_token = ? AND token_expires_at > ?", token, time.Now()).First(&user).Error; err != nil {
+	
+	// Try to find user with the verification token
+	err := db.DB.Where("verification_token = ?", token).First(&user).Error
+	
+	if err != nil {
+		// Token not found - could be invalid, expired, or already used
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Invalid or expired verification token",
+			"error": "Invalid or expired verification token. If you recently verified your email, you can try logging in.",
+			"suggestion": "try_login",
+		})
+	}
+
+	// Check if token is expired
+	if user.TokenExpiresAt.Before(time.Now()) {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Verification token has expired. Please request a new verification email.",
+			"suggestion": "request_new_token",
+		})
+	}
+
+	// Check if user is already verified
+	if user.IsVerified {
+		return c.JSON(fiber.Map{
+			"message": "Email already verified successfully. You can now log in.",
+			"already_verified": true,
 		})
 	}
 
@@ -314,6 +336,7 @@ func VerifyEmail(c *fiber.Ctx) error {
 
 	return c.JSON(fiber.Map{
 		"message": "Email verified successfully. You can now log in.",
+		"newly_verified": true,
 	})
 }
 

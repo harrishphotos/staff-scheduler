@@ -58,6 +58,9 @@ func main() {
 
 	app := fiber.New()
 
+	// CORS is handled by API Gateway - no need to set it here
+	// Removed CORS middleware to prevent duplicate headers
+
 	// Setup routes
 	handler.SetupRoutes(app)
 

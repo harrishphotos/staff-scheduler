@@ -4,8 +4,7 @@ import {
   UpdateStaffRequest,
   StaffApiResponse,
 } from "../types/staff";
-
-const EMPLOYEE_API_BASE = "http://localhost:3002";
+import axiosInstance from "../api/axios";
 
 // Helper function to transform API response to frontend Staff type
 const transformApiResponseToStaff = (apiResponse: StaffApiResponse): Staff => ({
@@ -35,20 +34,9 @@ const transformStaffToApiRequest = (
 export const staffAPI = {
   // Get all staff members
   getAll: async (): Promise<Staff[]> => {
-    console.log("🌐 Making API request to:", `${EMPLOYEE_API_BASE}/employees`);
-    const response = await fetch(`${EMPLOYEE_API_BASE}/employees`);
-    console.log("📡 API response status:", response.status, response.ok);
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("❌ API Error:", response.status, errorText);
-      throw new Error(
-        `Failed to fetch staff members: ${response.status} ${errorText}`
-      );
-    }
-
-    const apiResponses: StaffApiResponse[] = await response.json();
-    console.log("📄 Raw API data:", apiResponses);
+    const { data: apiResponses } = await axiosInstance.get<StaffApiResponse[]>(
+      "/api/employees"
+    );
 
     const transformedStaff = apiResponses.map(transformApiResponseToStaff);
     console.log("🔄 Transformed staff data:", transformedStaff);
@@ -58,11 +46,9 @@ export const staffAPI = {
 
   // Get staff member by ID
   getById: async (id: string): Promise<Staff> => {
-    const response = await fetch(`${EMPLOYEE_API_BASE}/employees/${id}`);
-    if (!response.ok) {
-      throw new Error("Failed to fetch staff member");
-    }
-    const apiResponse: StaffApiResponse = await response.json();
+    const { data: apiResponse } = await axiosInstance.get<StaffApiResponse>(
+      `/api/employees/${id}`
+    );
     return transformApiResponseToStaff(apiResponse);
   },
 
@@ -71,60 +57,34 @@ export const staffAPI = {
     staff: Omit<Staff, "id" | "createdAt" | "updatedAt">
   ): Promise<Staff> => {
     const requestBody = transformStaffToApiRequest(staff);
-    const response = await fetch(`${EMPLOYEE_API_BASE}/employees`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(requestBody),
-    });
-    if (!response.ok) {
-      throw new Error("Failed to create staff member");
-    }
-    const apiResponse: StaffApiResponse = await response.json();
+    const { data: apiResponse } = await axiosInstance.post<StaffApiResponse>(
+      "/api/employees",
+      requestBody
+    );
     return transformApiResponseToStaff(apiResponse);
   },
 
   // Update existing staff member
   update: async (id: string, updates: Partial<Staff>): Promise<Staff> => {
     const requestBody = transformStaffToApiRequest(updates);
-    const response = await fetch(`${EMPLOYEE_API_BASE}/employees/${id}`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(requestBody),
-    });
-    if (!response.ok) {
-      throw new Error("Failed to update staff member");
-    }
-    const apiResponse: StaffApiResponse = await response.json();
+    const { data: apiResponse } = await axiosInstance.put<StaffApiResponse>(
+      `/api/employees/${id}`,
+      requestBody
+    );
     return transformApiResponseToStaff(apiResponse);
   },
 
   // Delete staff member
   delete: async (id: string): Promise<void> => {
-    const response = await fetch(`${EMPLOYEE_API_BASE}/employees/${id}`, {
-      method: "DELETE",
-    });
-    if (!response.ok) {
-      throw new Error("Failed to delete staff member");
-    }
+    await axiosInstance.delete(`/api/employees/${id}`);
   },
 
   // Toggle staff active status
   toggleActiveStatus: async (id: string, isActive: boolean): Promise<Staff> => {
-    const response = await fetch(`${EMPLOYEE_API_BASE}/employees/${id}`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ is_active: isActive }),
-    });
-    if (!response.ok) {
-      throw new Error("Failed to update staff status");
-    }
-    const apiResponse: StaffApiResponse = await response.json();
+    const { data: apiResponse } = await axiosInstance.put<StaffApiResponse>(
+      `/api/employees/${id}`,
+      { is_active: isActive }
+    );
     return transformApiResponseToStaff(apiResponse);
   },
 };

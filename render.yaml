@@ -1,0 +1,89 @@
+services:
+  # API Gateway Service
+  - type: web
+    name: staff-api-gateway
+    env: docker
+    dockerfilePath: ./services/api-gateway/Dockerfile
+    dockerContext: .
+    region: singapore # or oregon for US
+    plan: free
+    branch: main
+    healthCheckPath: /health
+    envVars:
+      - key: GATEWAY_PORT
+        value: 8081
+      - key: AUTH_SERVICE_URL
+        fromService:
+          type: web
+          name: staff-auth-service
+          property: host
+      - key: EMPLOYEE_SERVICE_URL
+        fromService:
+          type: web
+          name: staff-employee-service
+          property: host
+      - key: ALLOWED_ORIGINS
+        value: https://yourapp.vercel.app,http://localhost:5173,http://localhost:3000
+      - key: ENVIRONMENT
+        value: production
+
+  # Auth Service
+  - type: web
+    name: staff-auth-service
+    env: docker
+    dockerfilePath: ./services/auth-service/Dockerfile
+    dockerContext: .
+    region: singapore # or oregon for US
+    plan: free
+    branch: main
+    healthCheckPath: /health
+    envVars:
+      - key: AUTH_SERVICE_PORT
+        value: 3004
+      - key: USER_DB_URL
+        sync: false # Add manually in Render dashboard for security
+      - key: USER_AUTO_CLEAN
+        value: false
+      - key: PASETO_SECRET_KEY
+        sync: false # Add manually in Render dashboard for security
+      - key: ACCESS_TOKEN_EXPIRATION
+        value: 15m
+      - key: SMTP_HOST
+        value: smtp-relay.brevo.com
+      - key: SMTP_PORT
+        value: 587
+      - key: SMTP_USERNAME
+        sync: false # Add manually in Render dashboard for security
+      - key: SMTP_PASSWORD
+        sync: false # Add manually in Render dashboard for security
+      - key: SMTP_FROM
+        value: it23291782@my.sliit.lk
+      - key: APP_URL
+        fromService:
+          type: web
+          name: staff-api-gateway
+          property: host
+      - key: FRONTEND_URL
+        value: https://yourapp.vercel.app
+      - key: ENVIRONMENT
+        value: production
+
+  # Employee Service
+  - type: web
+    name: staff-employee-service
+    env: docker
+    dockerfilePath: ./services/employee-service/Dockerfile
+    dockerContext: .
+    region: singapore # or oregon for US
+    plan: free
+    branch: main
+    healthCheckPath: /health
+    envVars:
+      - key: EMPLOYEE_SERVICE_PORT
+        value: 3002
+      - key: EMPLOYEE_DB_URL
+        sync: false # Add manually in Render dashboard for security
+      - key: EMPLOYEE_AUTO_CLEAN
+        value: false
+      - key: ENVIRONMENT
+        value: production
