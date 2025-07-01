@@ -22,7 +22,7 @@ func getServiceURL(serviceName string) string {
 		case "employee":
 			return "http://localhost:3002"
 		case "auth":
-			return "http://localhost:3005"
+			return "http://localhost:3004"
 		default:
 			return "http://localhost:3000"
 		}
@@ -43,7 +43,51 @@ func ForwardToAuthService(c *fiber.Ctx) error {
 	return forwardRequest(c, targetURL)
 }
 
-// forwardRequest handles the actual proxying of the request to the target service
+// checkServiceHealth checks if a service is ready by calling its health endpoint
+func checkServiceHealth(serviceURL string) bool {
+	healthURL := serviceURL + "/health"
+	
+	client := &http.Client{
+		Timeout: 5 * time.Second,
+	}
+	
+	resp, err := client.Get(healthURL)
+	if err != nil {
+		return false
+	}
+	defer resp.Body.Close()
+	
+	return resp.StatusCode == 200
+}
+
+// waitForServiceReady waits for a service to become ready with exponential backoff
+func waitForServiceReady(serviceURL string, maxWait time.Duration) error {
+	startTime := time.Now()
+	attempt := 0
+	
+	for time.Since(startTime) < maxWait {
+		if checkServiceHealth(serviceURL) {
+			fmt.Printf("[HEALTH] Service %s is ready after %v (attempt %d)\n", serviceURL, time.Since(startTime), attempt+1)
+			return nil
+		}
+		
+		attempt++
+		// Exponential backoff: 1s, 2s, 4s, 8s, then 5s intervals
+		var delay time.Duration
+		if attempt <= 4 {
+			delay = time.Duration(1<<uint(attempt-1)) * time.Second
+		} else {
+			delay = 5 * time.Second
+		}
+		
+		fmt.Printf("[HEALTH] Service %s not ready, retrying in %v (attempt %d)\n", serviceURL, delay, attempt)
+		time.Sleep(delay)
+	}
+	
+	return fmt.Errorf("service %s failed to become ready within %v", serviceURL, maxWait)
+}
+
+// forwardRequest handles the actual proxying of the request to the target service with cold start handling
 func forwardRequest(c *fiber.Ctx, targetBaseURL string) error {
 	// Start timing the request
 	startTime := time.Now()
@@ -52,7 +96,7 @@ func forwardRequest(c *fiber.Ctx, targetBaseURL string) error {
 	path := c.Path()
 	
 	// Handle path transformation based on service type
-	if strings.Contains(targetBaseURL, ":3005") || strings.Contains(targetBaseURL, "auth") {
+	if strings.Contains(targetBaseURL, ":3004") || strings.Contains(targetBaseURL, "auth") {
 		// Auth service: Keep the full path since it expects /api/auth/* routes
 		// Example: /api/auth/login -> /api/auth/login
 	} else {
@@ -76,41 +120,106 @@ func forwardRequest(c *fiber.Ctx, targetBaseURL string) error {
 		targetURL += "?" + string(c.Request().URI().QueryString())
 	}
 	
-	// Create a new HTTP request
-	req, err := http.NewRequest(
-		c.Method(),
-		targetURL,
-		strings.NewReader(string(c.Body())),
-	)
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to create proxy request",
-			"details": err.Error(),
-		})
-	}
-	
-	// Copy headers from the original request
-	for key, values := range c.GetReqHeaders() {
-		if key != "Host" { // Skip the Host header
-			for _, value := range values {
-				req.Header.Add(key, value)
-			}
+	// First, check if service is ready. If not, wait for it to wake up
+	if !checkServiceHealth(targetBaseURL) {
+		fmt.Printf("[WARMUP] Service %s appears to be sleeping, waiting for wake-up...\n", targetBaseURL)
+		
+		// Try to wake up the service by making a health check request (this will trigger cold start)
+		go func() {
+			client := &http.Client{Timeout: 1 * time.Second}
+			client.Get(targetBaseURL + "/health")
+		}()
+		
+		// Wait up to 90 seconds for service to become ready (matches frontend expectations)
+		if err := waitForServiceReady(targetBaseURL, 90*time.Second); err != nil {
+			fmt.Printf("[ERROR] %v\n", err)
+			return c.Status(fiber.StatusBadGateway).JSON(fiber.Map{
+				"error": "Service is unavailable - cold start timeout",
+				"details": fmt.Sprintf("Service %s failed to wake up within 90 seconds", targetBaseURL),
+			})
 		}
 	}
 	
-	// Set the X-Forwarded headers
-	req.Header.Set("X-Forwarded-Host", string(c.Request().Host()))
-	req.Header.Set("X-Forwarded-Proto", "http") // or https if using TLS
+	// Now make the actual request with retry logic
+	maxRetries := 3
+	var lastErr error
+	var resp *http.Response
 	
-	// Send the request to the target service
-	client := &http.Client{
-		Timeout: 30 * time.Second,
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		// Create a new HTTP request for each attempt
+		req, err := http.NewRequest(
+			c.Method(),
+			targetURL,
+			strings.NewReader(string(c.Body())),
+		)
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error": "Failed to create proxy request",
+				"details": err.Error(),
+			})
+		}
+		
+		// Copy headers from the original request
+		for key, values := range c.GetReqHeaders() {
+			if key != "Host" { // Skip the Host header
+				for _, value := range values {
+					req.Header.Add(key, value)
+				}
+			}
+		}
+		
+		// Set the X-Forwarded headers
+		req.Header.Set("X-Forwarded-Host", string(c.Request().Host()))
+		req.Header.Set("X-Forwarded-Proto", "http") // or https if using TLS
+		
+		// Progressive timeout: 60s, 75s, 90s
+		timeout := time.Duration(60+15*attempt) * time.Second
+		client := &http.Client{
+			Timeout: timeout,
+		}
+		
+		fmt.Printf("[PROXY] %s %s -> %s (attempt %d/%d, timeout %v)\n", 
+			c.Method(), c.Path(), targetURL, attempt+1, maxRetries, timeout)
+		
+		// Send the request to the target service
+		resp, err = client.Do(req)
+		lastErr = err
+		
+		if err == nil {
+			// Success! Break out of retry loop
+			break
+		}
+		
+		// If this was the last attempt, don't retry
+		if attempt == maxRetries-1 {
+			break
+		}
+		
+		// Check if it's a timeout or connection error that might resolve with retry
+		if strings.Contains(err.Error(), "timeout") || 
+		   strings.Contains(err.Error(), "connection refused") ||
+		   strings.Contains(err.Error(), "no such host") {
+			
+			delay := time.Duration(2*(attempt+1)) * time.Second
+			fmt.Printf("[RETRY] Request failed (%v), retrying in %v...\n", err, delay)
+			time.Sleep(delay)
+			continue
+		}
+		
+		// For other errors, don't retry
+		break
 	}
-	resp, err := client.Do(req)
-	if err != nil {
+	
+	if lastErr != nil {
 		return c.Status(fiber.StatusBadGateway).JSON(fiber.Map{
-			"error": "Failed to proxy request to service",
-			"details": err.Error(),
+			"error": "Failed to proxy request to service after retries",
+			"details": lastErr.Error(),
+		})
+	}
+	
+	if resp == nil {
+		return c.Status(fiber.StatusBadGateway).JSON(fiber.Map{
+			"error": "No response received from service",
 		})
 	}
 	defer resp.Body.Close()

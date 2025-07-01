@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -43,7 +44,7 @@ func AuthMiddleware() fiber.Handler {
 		// Get auth service URL
 		authServiceURL := os.Getenv("AUTH_SERVICE_URL")
 		if authServiceURL == "" {
-			authServiceURL = "http://localhost:3005"
+			authServiceURL = "http://localhost:3004"
 		}
 
 		// Create request to validate token with auth service
@@ -58,12 +59,15 @@ func AuthMiddleware() fiber.Handler {
 		req.Header.Set("Authorization", authHeader)
 		req.Header.Set("Content-Type", "application/json")
 
-		// Make request to auth service
-		client := &http.Client{}
+		// Make request to auth service with extended timeout for cold starts
+		client := &http.Client{
+			Timeout: 60 * time.Second, // Extended timeout for cold starts
+		}
 		resp, err := client.Do(req)
 		if err != nil {
 			return c.Status(500).JSON(fiber.Map{
 				"error": "auth service unavailable",
+				"details": err.Error(),
 			})
 		}
 		defer resp.Body.Close()
