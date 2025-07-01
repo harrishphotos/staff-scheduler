@@ -42,36 +42,36 @@ const StaffCard: React.FC<StaffCardProps> = ({
 
   return (
     <div
-      className={`bg-white/5 border border-white/10 rounded-xl backdrop-blur-sm flex flex-col transition-all duration-300 hover:bg-white/10 hover:border-white/20 hover:shadow-2xl group ${
-        !isActive ? "opacity-60" : ""
+      className={`bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 flex flex-col transition-all duration-300 hover:shadow-lg ${
+        !isActive ? "bg-gray-50/50 dark:bg-gray-800/50" : ""
       }`}
     >
       <div className="p-6">
-        <div className="flex justify-between items-start mb-4">
+        <div className="flex justify-between items-start">
           <div className="flex items-center gap-4">
             {profilePic ? (
               <img
                 src={profilePic}
                 alt={`${firstName} ${lastName}`}
-                className="w-14 h-14 rounded-full object-cover border-2 border-white/20 ring-2 ring-white/10"
+                className="w-14 h-14 rounded-full object-cover border-2 border-white dark:border-gray-800 ring-2 ring-gray-200 dark:ring-gray-700"
               />
             ) : (
-              <div className="w-14 h-14 rounded-full bg-white/10 border border-white/20 text-white/90 flex items-center justify-center font-bold text-xl backdrop-blur-sm">
+              <div className="w-14 h-14 rounded-full bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold text-xl border-2 border-white dark:border-gray-800 ring-2 ring-gray-100 dark:ring-gray-700">
                 {getInitials(firstName, lastName)}
               </div>
             )}
             <div>
-              <h3 className="text-lg font-semibold text-white/95">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
                 {firstName} {lastName}
               </h3>
-              <p className="text-sm text-white/60">{role}</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">{role}</p>
             </div>
           </div>
-          <span
-            className={`px-2.5 py-1 text-xs font-medium rounded-full flex items-center gap-1.5 ${
+          <div
+            className={`px-3 py-1 text-xs font-medium rounded-full flex items-center gap-1.5 ${
               isActive
-                ? "bg-green-500/20 border border-green-400/30 text-green-400"
-                : "bg-red-500/20 border border-red-400/30 text-red-400"
+                ? "bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-300"
+                : "bg-red-100 dark:bg-red-900/50 text-red-800 dark:text-red-300"
             }`}
           >
             <span
@@ -80,53 +80,54 @@ const StaffCard: React.FC<StaffCardProps> = ({
               }`}
             ></span>
             {isActive ? "Active" : "Inactive"}
-          </span>
+          </div>
         </div>
 
-        <div className="space-y-3 mb-4">
+        <div className="mt-6 space-y-4">
           <div>
-            <label className="text-xs font-medium text-white/50 uppercase tracking-wide">
+            <p className="text-xs text-gray-500 dark:text-gray-400 font-medium uppercase tracking-wider">
               Email
-            </label>
-            <p className="text-sm text-white/80 mt-1">{email}</p>
+            </p>
+            <a
+              href={`mailto:${email}`}
+              className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+            >
+              {email}
+            </a>
           </div>
           {services && services.length > 0 && (
             <div>
-              <label className="text-xs font-medium text-white/50 uppercase tracking-wide">
+              <p className="text-xs text-gray-500 dark:text-gray-400 font-medium uppercase tracking-wider">
                 Services
-              </label>
+              </p>
               <div className="flex flex-wrap gap-2 mt-2">
-                {services.slice(0, 2).map((service, index) => (
+                {services.map((service, index) => (
                   <span
                     key={index}
-                    className="px-2 py-1 text-xs bg-white/10 border border-white/20 text-white/80 rounded-md"
+                    className="px-2.5 py-1 bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 text-xs rounded-full font-medium"
                   >
                     {service}
                   </span>
                 ))}
-                {services.length > 2 && (
-                  <span className="px-2 py-1 text-xs bg-white/5 border border-white/10 text-white/60 rounded-md">
-                    +{services.length - 2} more
-                  </span>
-                )}
               </div>
             </div>
           )}
         </div>
       </div>
 
-      <div className="px-6 py-3 border-t border-white/10">
+      {/* Manage Availability Button */}
+      <div className="px-6 py-3 border-t border-gray-200 dark:border-gray-700">
         <button
           onClick={handleManageAvailability}
-          className="w-full bg-white/95 hover:bg-white/85 text-black font-medium py-2.5 px-4 rounded-lg flex items-center justify-center space-x-2 transition-all duration-200 group-hover:shadow-lg"
+          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg flex items-center justify-center space-x-2 transition-colors duration-200"
         >
           <FiCalendar className="w-4 h-4" />
           <span>Manage Availability</span>
         </button>
       </div>
 
-      <div className="bg-white/5 px-6 py-4 border-t border-white/10 mt-auto rounded-b-xl flex justify-between items-center">
-        <p className="text-xs text-white/50">
+      <div className="bg-gray-50 dark:bg-gray-800/50 px-6 py-4 border-t border-gray-200 dark:border-gray-700 mt-auto rounded-b-xl flex justify-between items-center">
+        <p className="text-xs text-gray-500 dark:text-gray-400">
           Joined:{" "}
           {createdAt
             ? new Date(createdAt).toLocaleDateString("en-US", {
@@ -139,17 +140,17 @@ const StaffCard: React.FC<StaffCardProps> = ({
         <div className="flex items-center gap-2">
           <button
             onClick={() => onEdit(staff)}
-            className="p-2 text-white/50 hover:text-white/80 rounded-md hover:bg-white/10 transition-all duration-200"
+            className="p-2 text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
             title="Edit"
           >
             <FiEdit className="w-5 h-5" />
           </button>
           <button
             onClick={() => onToggleStatus(id, !isActive)}
-            className={`p-2 rounded-md hover:bg-white/10 transition-all duration-200 ${
+            className={`p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${
               isActive
-                ? "text-white/50 hover:text-red-400"
-                : "text-white/50 hover:text-green-400"
+                ? "text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400"
+                : "text-gray-500 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400"
             }`}
             title={isActive ? "Deactivate" : "Activate"}
           >

@@ -10,7 +10,9 @@ import { Toaster } from "react-hot-toast";
 import { toasterConfig } from "./config/toast-config";
 import AdminLayout from "./layout/AdminLayout";
 import StaffManagement from "./pages/StaffManagement";
+import Settings from "./pages/Settings";
 import StaffAvailability from "./components/staff/views/StaffAvailability";
+import Appointments from "./pages/Appointments";
 import RequireAuth from "./routes/RequireAuth";
 import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
@@ -38,6 +40,8 @@ const App: React.FC = () => {
               path="staff/:staffId/availability"
               element={<StaffAvailability />}
             />
+            <Route path="settings" element={<Settings />} />
+            <Route path="appointments" element={<Appointments />} />
           </Route>
         </Route>
       </Routes>
