@@ -21,6 +21,7 @@ import {
   OnetimeBlock,
 } from "../../../../types/availability";
 import OnetimeBlockModal from "../../modals/availability/OnetimeBlockModal";
+import { Plus, Edit3, CalendarX, Clock } from "lucide-react";
 
 interface OnetimeBlocksTabProps {
   staff: Staff;
@@ -110,89 +111,116 @@ const OnetimeBlocksTab: React.FC<OnetimeBlocksTabProps> = ({ staff }) => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-start">
         <div>
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+          <h3 className="text-lg font-semibold text-white/95 mb-1">
             Time Off Blocks
           </h3>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            Manage {staff.firstName}'s time-off periods (vacation, sick leave,
-            etc.)
+          <p className="text-sm text-white/60">
+            Manage {staff.firstName}'s vacation days, sick leave, and other
+            time-off
           </p>
         </div>
         <button
           onClick={handleAddBlock}
-          className="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-lg flex items-center space-x-2 transition-colors duration-200"
+          className="bg-white/95 hover:bg-white/85 text-black font-medium py-2.5 px-4 rounded-lg flex items-center space-x-2 transition-all duration-200 shadow-lg"
         >
-          <svg
-            className="w-5 h-5"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-            />
-          </svg>
+          <Plus className="w-5 h-5" />
           <span>Add Time Off</span>
         </button>
       </div>
 
+      {/* Summary Cards */}
+      {onetimeBlocks.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-white/5 border border-white/10 rounded-lg p-4 backdrop-blur-sm">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <div className="w-10 h-10 bg-red-500/20 border border-red-400/30 rounded-lg flex items-center justify-center">
+                  <CalendarX className="h-6 w-6 text-red-400" />
+                </div>
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-red-400">Total Blocks</p>
+                <p className="text-2xl font-semibold text-white/95">
+                  {onetimeBlocks.length}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white/5 border border-white/10 rounded-lg p-4 backdrop-blur-sm">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <div className="w-10 h-10 bg-orange-500/20 border border-orange-400/30 rounded-lg flex items-center justify-center">
+                  <CalendarX className="h-6 w-6 text-orange-400" />
+                </div>
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-orange-400">Upcoming</p>
+                <p className="text-2xl font-semibold text-white/95">
+                  {futureBlocks.length}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white/5 border border-white/10 rounded-lg p-4 backdrop-blur-sm">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <div className="w-10 h-10 bg-blue-500/20 border border-blue-400/30 rounded-lg flex items-center justify-center">
+                  <CalendarX className="h-6 w-6 text-blue-400" />
+                </div>
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-blue-400">Past</p>
+                <p className="text-2xl font-semibold text-white/95">
+                  {pastBlocks.length}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Upcoming Time Off */}
       {futureBlocks.length > 0 && (
-        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
-          <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-4">
+        <div className="bg-white/5 border border-white/10 rounded-lg p-4 backdrop-blur-sm">
+          <h4 className="font-medium text-white/95 mb-4">
             Upcoming Time Off ({futureBlocks.length})
           </h4>
           <div className="space-y-3">
             {futureBlocks.map((block) => (
               <div
                 key={block.id}
-                className="flex items-center justify-between p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors cursor-pointer"
+                className="group flex items-center justify-between p-4 bg-red-500/10 border border-red-400/30 rounded-lg hover:bg-red-500/15 transition-all duration-200 cursor-pointer"
                 onClick={() => handleEditBlock(block)}
               >
                 <div className="flex-1">
-                  <div className="flex items-center space-x-4">
-                    <span className="font-medium text-red-900 dark:text-red-100">
+                  <div className="flex items-center space-x-3">
+                    <span className="font-medium text-red-400">
                       {block.reason}
                     </span>
-                    <span className="px-2 py-1 text-xs font-medium bg-red-100 dark:bg-red-900/50 text-red-800 dark:text-red-200 rounded">
+                    <span className="px-2 py-1 text-xs font-medium bg-red-500/20 text-red-400 rounded border border-red-400/30">
                       {calculateDuration(
                         block.start_date_time,
                         block.end_date_time
                       )}
                     </span>
                   </div>
-                  <div className="flex items-center space-x-4 mt-1">
-                    <span className="text-sm text-red-700 dark:text-red-300">
+                  <div className="flex items-center space-x-3 mt-1">
+                    <span className="text-sm text-white/60">
                       {formatDateTime(block.start_date_time)}
                     </span>
-                    <span className="text-sm text-red-500 dark:text-red-400">
-                      →
-                    </span>
-                    <span className="text-sm text-red-700 dark:text-red-300">
+                    <span className="text-sm text-white/50">→</span>
+                    <span className="text-sm text-white/60">
                       {formatDateTime(block.end_date_time)}
                     </span>
                   </div>
                 </div>
-                <button className="p-2 text-red-400 hover:text-red-600 dark:hover:text-red-300">
-                  <svg
-                    className="w-5 h-5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
-                    />
-                  </svg>
-                </button>
+                <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                  <Edit3 className="w-5 h-5 text-white/60 hover:text-white/90 transition-colors duration-200" />
+                </div>
               </div>
             ))}
           </div>
@@ -201,96 +229,72 @@ const OnetimeBlocksTab: React.FC<OnetimeBlocksTabProps> = ({ staff }) => {
 
       {/* Past Time Off */}
       {pastBlocks.length > 0 && (
-        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
-          <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-4">
+        <div className="bg-white/5 border border-white/10 rounded-lg p-4 backdrop-blur-sm">
+          <h4 className="font-medium text-white/95 mb-4">
             Past Time Off ({pastBlocks.length})
           </h4>
-          <div className="space-y-3">
+          <div className="space-y-3 max-h-80 overflow-y-auto">
             {pastBlocks.map((block) => (
               <div
                 key={block.id}
-                className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg opacity-75"
+                className="group flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition-all duration-200 cursor-pointer"
+                onClick={() => handleEditBlock(block)}
               >
                 <div className="flex-1">
-                  <div className="flex items-center space-x-4">
-                    <span className="font-medium text-gray-900 dark:text-gray-100">
+                  <div className="flex items-center space-x-3">
+                    <span className="font-medium text-white/95">
                       {block.reason}
                     </span>
-                    <span className="px-2 py-1 text-xs font-medium bg-gray-100 dark:bg-gray-600 text-gray-800 dark:text-gray-200 rounded">
+                    <span className="px-2 py-1 text-xs font-medium bg-white/10 text-white/70 rounded border border-white/15">
                       {calculateDuration(
                         block.start_date_time,
                         block.end_date_time
                       )}
                     </span>
                   </div>
-                  <div className="flex items-center space-x-4 mt-1">
-                    <span className="text-sm text-gray-600 dark:text-gray-400">
+                  <div className="flex items-center space-x-3 mt-1">
+                    <span className="text-sm text-white/60">
                       {formatDateTime(block.start_date_time)}
                     </span>
-                    <span className="text-sm text-gray-400">→</span>
-                    <span className="text-sm text-gray-600 dark:text-gray-400">
+                    <span className="text-sm text-white/50">→</span>
+                    <span className="text-sm text-white/60">
                       {formatDateTime(block.end_date_time)}
                     </span>
                   </div>
                 </div>
-                <span className="px-2 py-1 text-xs font-medium bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded">
-                  Completed
-                </span>
+                <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                  <Edit3 className="w-5 h-5 text-white/60 hover:text-white/90 transition-colors duration-200" />
+                </div>
               </div>
             ))}
           </div>
         </div>
       )}
 
-      {/* All Time Off (if there are both past and future) */}
-      {onetimeBlocks.length > 0 &&
-        futureBlocks.length > 0 &&
-        pastBlocks.length > 0 && (
-          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
-            <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-4">
-              All Time Off Blocks ({onetimeBlocks.length})
-            </h4>
-            <div className="text-sm text-gray-600 dark:text-gray-400 mb-3">
-              {futureBlocks.length} upcoming • {pastBlocks.length} completed
-            </div>
-          </div>
-        )}
-
       {/* Empty State */}
       {onetimeBlocks.length === 0 && (
-        <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-          <div className="mx-auto w-24 h-24 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mb-4">
-            <svg
-              className="w-12 h-12 text-gray-400 dark:text-gray-500"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728L5.636 5.636m12.728 12.728L5.636 5.636"
-              />
-            </svg>
+        <div className="text-center py-12 bg-white/5 border border-white/10 rounded-lg backdrop-blur-sm">
+          <div className="mx-auto w-24 h-24 bg-white/5 border border-white/10 rounded-lg flex items-center justify-center mb-4">
+            <CalendarX className="w-12 h-12 text-white/50" />
           </div>
-          <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
-            No time-off blocks configured
+          <h3 className="text-lg font-medium text-white/95 mb-2">
+            No Time Off Blocks
           </h3>
-          <p className="text-gray-500 dark:text-gray-400 mb-6">
-            Add vacation time, sick leave, or other unavailable periods for{" "}
-            {staff.firstName}.
+          <p className="text-white/60 mb-6">
+            {staff.firstName} doesn't have any time-off blocks scheduled. Add
+            vacation days, sick leave, or other time-off periods.
           </p>
           <button
             onClick={handleAddBlock}
-            className="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200"
+            className="bg-white/95 hover:bg-white/85 text-black font-medium py-2.5 px-4 rounded-lg flex items-center space-x-2 transition-all duration-200 shadow-lg mx-auto"
           >
-            Add First Time Off
+            <Plus className="w-5 h-5" />
+            <span>Add Time Off</span>
           </button>
         </div>
       )}
 
-      {/* One-time Block Modal */}
+      {/* Onetime Block Modal */}
       <OnetimeBlockModal
         isOpen={modalStates.onetimeBlock.isOpen}
         mode={modalStates.onetimeBlock.mode}

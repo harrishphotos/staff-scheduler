@@ -108,20 +108,20 @@ const StaffDetail: React.FC<StaffDetailProps> = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <div className="max-w-7xl mx-auto p-6">
+    <div className="p-6">
+      <div className="max-w-none mx-auto">
         {/* Header */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-6">
+        <div className="relative z-10 bg-black/80 border border-white/15 backdrop-blur-xl shadow-2xl rounded-lg p-6 mb-6">
           {/* Breadcrumb */}
-          <div className="flex items-center text-sm text-gray-500 dark:text-gray-400 mb-4">
+          <div className="flex items-center text-sm text-white/60 mb-4">
             <button
               onClick={handleBackToStaff}
-              className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+              className="hover:text-white/90 transition-colors"
             >
               Staff Management
             </button>
             <span className="mx-2">/</span>
-            <span className="text-gray-900 dark:text-gray-100">
+            <span className="text-white/95">
               {staff ? `${staff.firstName} ${staff.lastName}` : "Loading..."}
             </span>
           </div>
@@ -133,30 +133,26 @@ const StaffDetail: React.FC<StaffDetailProps> = () => {
                 <img
                   src={staff.profilePic}
                   alt={`${staff.firstName} ${staff.lastName}`}
-                  className="w-20 h-20 rounded-full object-cover border-4 border-white dark:border-gray-800 ring-4 ring-gray-200 dark:ring-gray-600"
+                  className="w-20 h-20 rounded-full object-cover border-4 border-white/20 ring-4 ring-white/10"
                 />
               ) : (
-                <div className="w-20 h-20 rounded-full bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold text-2xl border-4 border-white dark:border-gray-800 ring-4 ring-gray-200 dark:ring-gray-600">
+                <div className="w-20 h-20 rounded-full bg-white/10 border border-white/20 text-white/90 flex items-center justify-center font-bold text-2xl backdrop-blur-sm">
                   {staff.firstName.charAt(0)}
                   {staff.lastName.charAt(0)}
                 </div>
               )}
               <div>
-                <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+                <h1 className="text-3xl font-bold text-white/95">
                   {staff.firstName} {staff.lastName}
                 </h1>
-                <p className="text-lg text-gray-600 dark:text-gray-400 mt-1">
-                  {staff.role}
-                </p>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                  {staff.email}
-                </p>
+                <p className="text-lg text-white/70 mt-1">{staff.role}</p>
+                <p className="text-sm text-white/60 mt-1">{staff.email}</p>
                 <div className="flex items-center mt-2">
                   <span
                     className={`px-3 py-1 text-xs font-medium rounded-full flex items-center gap-1.5 ${
                       staff.isActive
-                        ? "bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-300"
-                        : "bg-red-100 dark:bg-red-900/50 text-red-800 dark:text-red-300"
+                        ? "bg-green-500/20 border border-green-400/30 text-green-400"
+                        : "bg-red-500/20 border border-red-400/30 text-red-400"
                     }`}
                   >
                     <span
@@ -174,7 +170,7 @@ const StaffDetail: React.FC<StaffDetailProps> = () => {
 
         {/* Error Display */}
         {hasErrors && (
-          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-6">
+          <div className="bg-red-500/10 border border-red-400/30 rounded-lg p-4 mb-6 backdrop-blur-sm">
             <div className="flex">
               <div className="flex-shrink-0">
                 <svg
@@ -190,10 +186,10 @@ const StaffDetail: React.FC<StaffDetailProps> = () => {
                 </svg>
               </div>
               <div className="ml-3">
-                <h3 className="text-sm font-medium text-red-800 dark:text-red-200">
+                <h3 className="text-sm font-medium text-red-400">
                   Error loading availability data
                 </h3>
-                <div className="mt-2 text-sm text-red-700 dark:text-red-300">
+                <div className="mt-2 text-sm text-red-300">
                   <ul className="list-disc pl-5 space-y-1">
                     {errorStates.schedules && <li>{errorStates.schedules}</li>}
                     {errorStates.recurringBreaks && (
@@ -210,8 +206,8 @@ const StaffDetail: React.FC<StaffDetailProps> = () => {
         )}
 
         {/* Tab Navigation */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 mb-6">
-          <div className="border-b border-gray-200 dark:border-gray-700">
+        <div className="relative z-10 bg-black/80 border border-white/15 backdrop-blur-xl shadow-2xl rounded-lg mb-6">
+          <div className="border-b border-white/15">
             <nav className="flex space-x-8 px-6" aria-label="Tabs">
               {tabs.map((tab) => (
                 <button
@@ -219,8 +215,8 @@ const StaffDetail: React.FC<StaffDetailProps> = () => {
                   onClick={() => handleTabChange(tab.id)}
                   className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
                     activeTab === tab.id
-                      ? "border-blue-500 text-blue-600 dark:text-blue-400"
-                      : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600"
+                      ? "border-white/90 text-white/95"
+                      : "border-transparent text-white/60 hover:text-white/80 hover:border-white/30"
                   }`}
                   aria-current={activeTab === tab.id ? "page" : undefined}
                 >
@@ -234,8 +230,8 @@ const StaffDetail: React.FC<StaffDetailProps> = () => {
           <div className="p-6">
             {isLoading && (
               <div className="flex items-center justify-center py-12">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                <span className="ml-3 text-gray-600 dark:text-gray-400">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white/90"></div>
+                <span className="ml-3 text-white/70">
                   Loading availability data...
                 </span>
               </div>
