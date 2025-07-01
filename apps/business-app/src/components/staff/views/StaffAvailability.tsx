@@ -52,27 +52,8 @@ const StaffAvailability: React.FC = () => {
     navigate("/staff");
   };
 
-  // Loading state
-  if (loading || !selectedStaff) {
-    return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mt-4">
-            Loading Staff Data...
-          </h2>
-          <p className="text-gray-600 dark:text-gray-400 mt-2">
-            {loading
-              ? "Fetching staff information"
-              : "Preparing availability management"}
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  // Error state
-  if (error && !selectedStaff) {
+  // Error state - only show error if there's an error and no staff data at all
+  if (error && staffList.length === 0) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
@@ -110,7 +91,53 @@ const StaffAvailability: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <StaffDetail staff={selectedStaff} onBack={handleBack} />
+      {selectedStaff ? (
+        <StaffDetail staff={selectedStaff} onBack={handleBack} />
+      ) : (
+        <div className="p-6">
+          <div className="max-w-7xl mx-auto">
+            {/* Skeleton loading for staff detail */}
+            <div className="animate-pulse">
+              {/* Header skeleton */}
+              <div className="mb-8">
+                <div className="flex items-center space-x-2 mb-4">
+                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-32"></div>
+                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-4"></div>
+                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-40"></div>
+                </div>
+                <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
+                  <div className="flex items-center space-x-6">
+                    <div className="w-20 h-20 bg-gray-200 dark:bg-gray-700 rounded-full"></div>
+                    <div className="flex-1">
+                      <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-48 mb-2"></div>
+                      <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-32 mb-1"></div>
+                      <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-40"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              {/* Tab skeleton */}
+              <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                <div className="border-b border-gray-200 dark:border-gray-700 px-6 py-4">
+                  <div className="flex space-x-4">
+                    <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-20"></div>
+                    <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-24"></div>
+                    <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-16"></div>
+                    <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-20"></div>
+                  </div>
+                </div>
+                <div className="p-6">
+                  <div className="space-y-4">
+                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-full"></div>
+                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4"></div>
+                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
