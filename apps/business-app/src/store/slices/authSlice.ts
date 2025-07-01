@@ -30,18 +30,45 @@ const initialState: AuthState = {
 // Base URL pulled from Vite env – falls back to gateway default on 8081.
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8081";
 
+// Helper function to make requests with timeout and retry for cold starts
+const fetchWithTimeout = async (
+  url: string,
+  options: RequestInit,
+  timeoutMs: number = 60000
+) => {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+    return response;
+  } catch (error) {
+    clearTimeout(timeoutId);
+    throw error;
+  }
+};
+
 export const login = createAsyncThunk(
   "auth/login",
   async (creds: { email: string; password: string }, { rejectWithValue }) => {
     try {
-      const response = await fetch(`${API_URL}/api/auth/login`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+      // First attempt with extended timeout for cold starts (60 seconds)
+      const response = await fetchWithTimeout(
+        `${API_URL}/api/auth/login`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include", // so refresh cookie is set
+          body: JSON.stringify(creds),
         },
-        credentials: "include", // so refresh cookie is set
-        body: JSON.stringify(creds),
-      });
+        60000
+      ); // 60 second timeout for cold start
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -50,7 +77,14 @@ export const login = createAsyncThunk(
 
       return await response.json();
     } catch (err: any) {
-      return rejectWithValue("Login failed");
+      if (err.name === "AbortError") {
+        return rejectWithValue(
+          "Request timed out. The server might be starting up, please try again."
+        );
+      }
+      return rejectWithValue(
+        "Login failed. Please check your connection and try again."
+      );
     }
   }
 );
@@ -62,14 +96,18 @@ export const register = createAsyncThunk(
     { rejectWithValue }
   ) => {
     try {
-      const response = await fetch(`${API_URL}/api/auth/register`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+      const response = await fetchWithTimeout(
+        `${API_URL}/api/auth/register`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
+          body: JSON.stringify(userData),
         },
-        credentials: "include",
-        body: JSON.stringify(userData),
-      });
+        60000
+      ); // 60 second timeout for cold start
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -78,7 +116,14 @@ export const register = createAsyncThunk(
 
       return await response.json();
     } catch (err: any) {
-      return rejectWithValue("Registration failed");
+      if (err.name === "AbortError") {
+        return rejectWithValue(
+          "Request timed out. The server might be starting up, please try again."
+        );
+      }
+      return rejectWithValue(
+        "Registration failed. Please check your connection and try again."
+      );
     }
   }
 );
@@ -87,13 +132,17 @@ export const refresh = createAsyncThunk(
   "auth/refresh",
   async (_, { rejectWithValue }) => {
     try {
-      const response = await fetch(`${API_URL}/api/auth/refresh`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+      const response = await fetchWithTimeout(
+        `${API_URL}/api/auth/refresh`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
         },
-        credentials: "include",
-      });
+        60000
+      ); // 60 second timeout for cold start
 
       if (!response.ok) {
         return rejectWithValue("Token refresh failed");
@@ -101,6 +150,11 @@ export const refresh = createAsyncThunk(
 
       return await response.json();
     } catch (err: any) {
+      if (err.name === "AbortError") {
+        return rejectWithValue(
+          "Request timed out. The server might be starting up, please try again."
+        );
+      }
       return rejectWithValue("Token refresh failed");
     }
   }
@@ -110,15 +164,24 @@ export const logoutThunk = createAsyncThunk(
   "auth/logout",
   async (_, { rejectWithValue }) => {
     try {
-      await fetch(`${API_URL}/api/auth/logout`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+      await fetchWithTimeout(
+        `${API_URL}/api/auth/logout`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
         },
-        credentials: "include",
-      });
+        60000
+      ); // 60 second timeout for cold start
       return true;
     } catch (err: any) {
+      if (err.name === "AbortError") {
+        return rejectWithValue(
+          "Request timed out. The server might be starting up, please try again."
+        );
+      }
       return rejectWithValue("Logout failed");
     }
   }

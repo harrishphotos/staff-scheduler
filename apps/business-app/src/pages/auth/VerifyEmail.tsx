@@ -323,7 +323,7 @@ const VerifyEmail = () => {
         {/* Footer */}
         <div className="mt-8 text-center">
           <p className="text-xs text-white/40">
-            © 2024 Staff Management. All rights reserved.
+            © 2024 StaffScheduler. All rights reserved.
           </p>
         </div>
       </div>

@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { AppDispatch, RootState } from "../../store/store";
 import { register, clearRegisterState } from "../../store/slices/authSlice";
 import { Link, useNavigate } from "react-router-dom";
-import toast from "react-hot-toast";
+import customToast from "../../utils/toast";
 import {
   Card,
   CardContent,
@@ -54,11 +54,11 @@ const Register = () => {
   // Handle success and error messages
   useEffect(() => {
     if (registerStatus === "succeeded" && registerMessage) {
-      toast.success(
+      customToast.success(
         "Registration successful! Check your email for verification."
       );
     } else if (registerStatus === "failed" && registerError) {
-      toast.error(registerError);
+      customToast.error(registerError);
     }
   }, [registerStatus, registerError, registerMessage]);
 
@@ -140,22 +140,22 @@ const Register = () => {
         <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-white/3 rounded-full blur-3xl animate-pulse delay-1000"></div>
 
         <div className="relative z-10 w-full max-w-md">
-          <Card className="bg-black/80 border-white/20 backdrop-blur-xl shadow-2xl">
-            <CardHeader className="space-y-4 text-center">
-              <div className="mx-auto w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center border border-green-500/30">
-                <CheckCircle className="w-8 h-8 text-green-400" />
+          <Card className="bg-black/80 border-white/15 backdrop-blur-xl shadow-2xl">
+            <CardHeader className="space-y-3 text-center pb-4">
+              <div className="mx-auto w-14 h-14 bg-green-500/15 rounded-full flex items-center justify-center border border-green-500/25">
+                <CheckCircle className="w-7 h-7 text-green-400" />
               </div>
-              <div className="space-y-2">
-                <CardTitle className="text-2xl font-bold text-white">
+              <div className="space-y-1">
+                <CardTitle className="text-xl font-semibold text-white/95">
                   Registration Successful!
                 </CardTitle>
-                <CardDescription className="text-white/60">
+                <CardDescription className="text-white/55 text-sm">
                   Please check your email to verify your account
                 </CardDescription>
               </div>
             </CardHeader>
 
-            <CardContent className="space-y-6">
+            <CardContent className="space-y-4 pt-2">
               <div className="text-center space-y-4">
                 <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-6 space-y-3">
                   <h3 className="text-lg font-semibold text-green-400">
@@ -170,15 +170,15 @@ const Register = () => {
                 </div>
 
                 <Link to="/login">
-                  <Button className="w-full bg-white text-black hover:bg-white/90 font-medium h-11 transition-all duration-200">
+                  <Button className="w-full bg-white/95 text-black hover:bg-white/85 font-medium h-10 transition-all duration-200">
                     <ArrowLeft className="w-4 h-4 mr-2" />
                     Back to Sign In
                   </Button>
                 </Link>
               </div>
 
-              <div className="text-center space-y-2">
-                <p className="text-xs text-white/40">
+              <div className="text-center space-y-1.5">
+                <p className="text-xs text-white/35">
                   Didn't receive the email? Check your spam folder or contact
                   support.
                 </p>
@@ -187,9 +187,9 @@ const Register = () => {
           </Card>
 
           {/* Footer */}
-          <div className="mt-8 text-center">
-            <p className="text-xs text-white/40">
-              © 2024 Staff Management. All rights reserved.
+          <div className="mt-6 text-center">
+            <p className="text-xs text-white/30">
+              © 2024 StaffScheduler. All rights reserved.
             </p>
           </div>
         </div>
@@ -207,25 +207,30 @@ const Register = () => {
       <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-white/3 rounded-full blur-3xl animate-pulse delay-1000"></div>
 
       <div className="relative z-10 w-full max-w-md">
-        <Card className="bg-black/80 border-white/20 backdrop-blur-xl shadow-2xl">
-          <CardHeader className="space-y-4 text-center">
-            <div className="mx-auto w-16 h-16 bg-white/10 rounded-full flex items-center justify-center border border-white/20">
-              <UserPlus className="w-8 h-8 text-white/80" />
+        <Card className="bg-black/80 border-white/15 backdrop-blur-xl shadow-2xl">
+          <CardHeader className="space-y-3 text-center pb-4">
+            <div className="mx-auto w-14 h-14 bg-white/8 rounded-full flex items-center justify-center border border-white/15">
+              <UserPlus className="w-7 h-7 text-white/75" />
             </div>
-            <div className="space-y-2">
-              <CardTitle className="text-2xl font-bold text-white">
+            <div className="space-y-1">
+              <CardTitle className="text-xl font-semibold text-white/95">
                 Create Account
               </CardTitle>
-              <CardDescription className="text-white/60">
+              <CardDescription className="text-white/55 text-sm">
                 Join us and start managing your staff efficiently
               </CardDescription>
             </div>
           </CardHeader>
 
-          <CardContent className="space-y-6">
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+          <CardContent className="space-y-4 pt-2">
+            <form onSubmit={handleSubmit} className="space-y-3">
+              <div className="space-y-1.5">
+                <Label
+                  htmlFor="email"
+                  className="text-white/70 text-sm font-medium"
+                >
+                  Email
+                </Label>
                 <div className="relative">
                   <Input
                     id="email"
@@ -233,14 +238,14 @@ const Register = () => {
                     placeholder="Enter your email"
                     value={formData.email}
                     onChange={(e) => handleInputChange("email", e.target.value)}
-                    className={`pl-10 ${
+                    className={`pl-10 h-10 bg-white/5 border-white/10 text-white/90 placeholder:text-white/40 focus:border-white/20 focus:ring-1 focus:ring-white/10 ${
                       validationErrors.email
-                        ? "border-red-500/50 focus-visible:ring-red-500/50"
+                        ? "border-red-500/50 focus:ring-red-500/30"
                         : ""
                     }`}
                     required
                   />
-                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-white/60" />
+                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-white/50" />
                 </div>
                 {validationErrors.email && (
                   <p className="text-red-400 text-xs">
@@ -249,8 +254,13 @@ const Register = () => {
                 )}
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="username">Username</Label>
+              <div className="space-y-1.5">
+                <Label
+                  htmlFor="username"
+                  className="text-white/70 text-sm font-medium"
+                >
+                  Username
+                </Label>
                 <div className="relative">
                   <Input
                     id="username"
@@ -260,14 +270,14 @@ const Register = () => {
                     onChange={(e) =>
                       handleInputChange("username", e.target.value)
                     }
-                    className={`pl-10 ${
+                    className={`pl-10 h-10 bg-white/5 border-white/10 text-white/90 placeholder:text-white/40 focus:border-white/20 focus:ring-1 focus:ring-white/10 ${
                       validationErrors.username
-                        ? "border-red-500/50 focus-visible:ring-red-500/50"
+                        ? "border-red-500/50 focus:ring-red-500/30"
                         : ""
                     }`}
                     required
                   />
-                  <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-white/60" />
+                  <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-white/50" />
                 </div>
                 {validationErrors.username && (
                   <p className="text-red-400 text-xs">
@@ -276,8 +286,13 @@ const Register = () => {
                 )}
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
+              <div className="space-y-1.5">
+                <Label
+                  htmlFor="password"
+                  className="text-white/70 text-sm font-medium"
+                >
+                  Password
+                </Label>
                 <div className="relative">
                   <Input
                     id="password"
@@ -287,18 +302,18 @@ const Register = () => {
                     onChange={(e) =>
                       handleInputChange("password", e.target.value)
                     }
-                    className={`pl-10 pr-10 ${
+                    className={`pl-10 pr-10 h-10 bg-white/5 border-white/10 text-white/90 placeholder:text-white/40 focus:border-white/20 focus:ring-1 focus:ring-white/10 ${
                       validationErrors.password
-                        ? "border-red-500/50 focus-visible:ring-red-500/50"
+                        ? "border-red-500/50 focus:ring-red-500/30"
                         : ""
                     }`}
                     required
                   />
-                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-white/60" />
+                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-white/50" />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-white/60 hover:text-white/80 transition-colors"
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-white/50 hover:text-white/75 transition-colors"
                   >
                     {showPassword ? (
                       <EyeOff className="w-4 h-4" />
@@ -314,8 +329,13 @@ const Register = () => {
                 )}
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="confirmPassword">Confirm Password</Label>
+              <div className="space-y-1.5">
+                <Label
+                  htmlFor="confirmPassword"
+                  className="text-white/70 text-sm font-medium"
+                >
+                  Confirm Password
+                </Label>
                 <div className="relative">
                   <Input
                     id="confirmPassword"
@@ -325,18 +345,18 @@ const Register = () => {
                     onChange={(e) =>
                       handleInputChange("confirmPassword", e.target.value)
                     }
-                    className={`pl-10 pr-10 ${
+                    className={`pl-10 pr-10 h-10 bg-white/5 border-white/10 text-white/90 placeholder:text-white/40 focus:border-white/20 focus:ring-1 focus:ring-white/10 ${
                       validationErrors.confirmPassword
-                        ? "border-red-500/50 focus-visible:ring-red-500/50"
+                        ? "border-red-500/50 focus:ring-red-500/30"
                         : ""
                     }`}
                     required
                   />
-                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-white/60" />
+                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-white/50" />
                   <button
                     type="button"
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-white/60 hover:text-white/80 transition-colors"
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-white/50 hover:text-white/75 transition-colors"
                   >
                     {showConfirmPassword ? (
                       <EyeOff className="w-4 h-4" />
@@ -361,7 +381,7 @@ const Register = () => {
               <Button
                 type="submit"
                 disabled={registerStatus === "loading"}
-                className="w-full bg-white text-black hover:bg-white/90 font-medium h-11 transition-all duration-200"
+                className="w-full bg-white/95 text-black hover:bg-white/85 font-medium h-10 transition-all duration-200 mt-4"
               >
                 {registerStatus === "loading" ? (
                   <>
@@ -374,26 +394,26 @@ const Register = () => {
               </Button>
             </form>
 
-            <div className="relative">
+            <div className="relative py-2">
               <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t border-white/20" />
+                <span className="w-full border-t border-white/15" />
               </div>
               <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-black px-2 text-white/60">or</span>
+                <span className="bg-black px-2 text-white/50">or</span>
               </div>
             </div>
 
-            <div className="text-center space-y-2">
-              <p className="text-sm text-white/60">
+            <div className="text-center space-y-1.5">
+              <p className="text-sm text-white/55">
                 Already have an account?{" "}
                 <Link
                   to="/login"
-                  className="text-white hover:text-white/80 underline underline-offset-4 font-medium transition-colors"
+                  className="text-white/85 hover:text-white/95 underline underline-offset-4 font-medium transition-colors"
                 >
                   Sign in here
                 </Link>
               </p>
-              <p className="text-xs text-white/40">
+              <p className="text-xs text-white/35">
                 By creating an account, you agree to our terms and privacy
                 policy
               </p>
@@ -404,7 +424,7 @@ const Register = () => {
         {/* Footer */}
         <div className="mt-8 text-center">
           <p className="text-xs text-white/40">
-            © 2024 Staff Management. All rights reserved.
+            © 2024 StaffScheduler. All rights reserved.
           </p>
         </div>
       </div>

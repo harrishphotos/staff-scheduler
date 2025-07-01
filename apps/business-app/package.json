@@ -1,7 +1,20 @@
 {
-  "name": "business-app",
+  "name": "staffscheduler",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
+  "description": "Professional staff scheduling and management platform for modern businesses",
+  "homepage": "https://staffscheduler.software",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/harrishphotos/staff-scheduler"
+  },
+  "keywords": [
+    "staff scheduling",
+    "employee management",
+    "shift planning",
+    "workforce management"
+  ],
+  "author": "StaffScheduler Team",
   "type": "module",
   "scripts": {
     "dev": "vite",
