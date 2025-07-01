@@ -7,6 +7,7 @@ import {
   useLocation,
 } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
+import { toasterConfig } from "./config/toast-config";
 import AdminLayout from "./layout/AdminLayout";
 import StaffManagement from "./pages/StaffManagement";
 import Settings from "./pages/Settings";
@@ -22,7 +23,7 @@ import ResetPassword from "./pages/auth/ResetPassword";
 const App: React.FC = () => {
   return (
     <BrowserRouter>
-      <Toaster position="top-right" />
+      <Toaster {...toasterConfig} />
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />

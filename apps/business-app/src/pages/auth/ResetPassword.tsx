@@ -225,7 +225,7 @@ const ResetPassword = () => {
           </Card>
 
           <div className="text-center mt-6 text-white/40 text-sm">
-            © 2024 Staff Management. All rights reserved.
+            © 2024 StaffScheduler. All rights reserved.
           </div>
         </div>
       </div>
@@ -322,7 +322,7 @@ const ResetPassword = () => {
           </Card>
 
           <div className="text-center mt-6 text-white/40 text-sm">
-            © 2024 Staff Management. All rights reserved.
+            © 2024 StaffScheduler. All rights reserved.
           </div>
         </div>
       </div>
@@ -477,7 +477,7 @@ const ResetPassword = () => {
         </Card>
 
         <div className="text-center mt-6 text-white/40 text-sm">
-          © 2024 Staff Management. All rights reserved.
+          © 2024 StaffScheduler. All rights reserved.
         </div>
       </div>
     </div>

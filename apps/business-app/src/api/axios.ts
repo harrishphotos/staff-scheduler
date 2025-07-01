@@ -14,6 +14,7 @@ export const setStore = (storeInstance: any) => {
 const axiosInstance = axios.create({
   baseURL: BASE_URL,
   withCredentials: true, // send cookies (refresh token)
+  timeout: 60000, // 60 second timeout for cold starts
 });
 
 // Request interceptor: attach access token if present
@@ -28,6 +29,28 @@ axiosInstance.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
+// Helper function for timeout handling in refresh requests
+const fetchWithTimeout = async (
+  url: string,
+  options: RequestInit,
+  timeoutMs: number = 60000
+) => {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+    return response;
+  } catch (error) {
+    clearTimeout(timeoutId);
+    throw error;
+  }
+};
+
 // Helper to queue refresh requests so multiple 401s trigger only one refresh call
 let refreshPromise: Promise<any> | null = null;
 
@@ -39,13 +62,17 @@ axiosInstance.interceptors.response.use(
     // If 401 and we haven't retried yet
     if (error.response?.status === 401 && !originalRequest?._retry) {
       if (!refreshPromise) {
-        refreshPromise = fetch(`${BASE_URL}/api/auth/refresh`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
+        refreshPromise = fetchWithTimeout(
+          `${BASE_URL}/api/auth/refresh`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            credentials: "include",
           },
-          credentials: "include",
-        })
+          60000
+        ) // 60 second timeout for cold start
           .then(async (res) => {
             if (res.ok) {
               const data = await res.json();
