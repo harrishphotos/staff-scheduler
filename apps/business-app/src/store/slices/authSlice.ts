@@ -34,7 +34,7 @@ const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8081";
 const fetchWithTimeout = async (
   url: string,
   options: RequestInit,
-  timeoutMs: number = 60000
+  timeoutMs: number = 80000
 ) => {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
@@ -56,7 +56,7 @@ export const login = createAsyncThunk(
   "auth/login",
   async (creds: { email: string; password: string }, { rejectWithValue }) => {
     try {
-      // First attempt with extended timeout for cold starts (60 seconds)
+      // First attempt with extended timeout for cold starts (80 seconds)
       const response = await fetchWithTimeout(
         `${API_URL}/api/auth/login`,
         {
@@ -67,8 +67,8 @@ export const login = createAsyncThunk(
           credentials: "include", // so refresh cookie is set
           body: JSON.stringify(creds),
         },
-        60000
-      ); // 60 second timeout for cold start
+        80000
+      ); // 80 second timeout for cold start
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -79,7 +79,7 @@ export const login = createAsyncThunk(
     } catch (err: any) {
       if (err.name === "AbortError") {
         return rejectWithValue(
-          "Request timed out. The server might be starting up, please try again."
+          "Request timed out. Services are starting up, please try again in a moment."
         );
       }
       return rejectWithValue(
@@ -106,8 +106,8 @@ export const register = createAsyncThunk(
           credentials: "include",
           body: JSON.stringify(userData),
         },
-        60000
-      ); // 60 second timeout for cold start
+        80000
+      ); // 80 second timeout for cold start
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -118,7 +118,7 @@ export const register = createAsyncThunk(
     } catch (err: any) {
       if (err.name === "AbortError") {
         return rejectWithValue(
-          "Request timed out. The server might be starting up, please try again."
+          "Request timed out. Services are starting up, please try again in a moment."
         );
       }
       return rejectWithValue(
@@ -141,8 +141,8 @@ export const refresh = createAsyncThunk(
           },
           credentials: "include",
         },
-        60000
-      ); // 60 second timeout for cold start
+        80000
+      ); // 80 second timeout for cold start
 
       if (!response.ok) {
         return rejectWithValue("Token refresh failed");
@@ -152,7 +152,7 @@ export const refresh = createAsyncThunk(
     } catch (err: any) {
       if (err.name === "AbortError") {
         return rejectWithValue(
-          "Request timed out. The server might be starting up, please try again."
+          "Request timed out. Services are starting up, please try again in a moment."
         );
       }
       return rejectWithValue("Token refresh failed");
@@ -173,13 +173,13 @@ export const logoutThunk = createAsyncThunk(
           },
           credentials: "include",
         },
-        60000
-      ); // 60 second timeout for cold start
+        80000
+      ); // 80 second timeout for cold start
       return true;
     } catch (err: any) {
       if (err.name === "AbortError") {
         return rejectWithValue(
-          "Request timed out. The server might be starting up, please try again."
+          "Request timed out. Services are starting up, please try again in a moment."
         );
       }
       return rejectWithValue("Logout failed");

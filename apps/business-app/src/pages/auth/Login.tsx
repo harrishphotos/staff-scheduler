@@ -25,24 +25,7 @@ const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [loadingTime, setLoadingTime] = useState(0);
   const { status, error } = useSelector((state: RootState) => state.auth);
-
-  // Timer effect to track loading time
-  useEffect(() => {
-    let interval: number;
-    if (status === "loading") {
-      setLoadingTime(0);
-      interval = window.setInterval(() => {
-        setLoadingTime((prev) => prev + 1);
-      }, 1000);
-    } else {
-      setLoadingTime(0);
-    }
-    return () => {
-      if (interval) window.clearInterval(interval);
-    };
-  }, [status]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,12 +38,6 @@ const Login = () => {
     } else if (login.rejected.match(resultAction)) {
       customToast.error(resultAction.payload as string);
     }
-  };
-
-  const getLoadingMessage = () => {
-    if (loadingTime < 5) return "Signing in...";
-    if (loadingTime < 15) return "Connecting to server...";
-    return "Server is waking up, please wait...";
   };
 
   return (
@@ -157,19 +134,12 @@ const Login = () => {
                 {status === "loading" ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                    {getLoadingMessage()}
+                    Signing In...
                   </>
                 ) : (
                   "Sign In"
                 )}
               </Button>
-
-              {status === "loading" && loadingTime > 10 && (
-                <div className="bg-blue-500/10 border border-blue-500/20 text-blue-400 px-4 py-3 rounded-md text-sm text-center">
-                  The server may be starting up from sleep mode. This can take
-                  up to a minute on the first request.
-                </div>
-              )}
 
               <div className="text-center pt-1">
                 <Link
