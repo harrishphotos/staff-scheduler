@@ -29,11 +29,39 @@ func main() {
 	// Enhanced CORS configuration with better error handling
 	allowedOrigins := setupCORS()
 	
+	// Add explicit preflight handler BEFORE CORS middleware
+	app.Options("/*", func(c *fiber.Ctx) error {
+		origin := c.Get("Origin")
+		
+		// Validate origin is in allowed list
+		allowedList := strings.Split(allowedOrigins, ",")
+		isAllowed := false
+		for _, allowed := range allowedList {
+			if strings.TrimSpace(allowed) == origin {
+				isAllowed = true
+				break
+			}
+		}
+		
+		if isAllowed {
+			c.Set("Access-Control-Allow-Origin", origin)
+			c.Set("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS")
+			c.Set("Access-Control-Allow-Headers", c.Get("Access-Control-Request-Headers"))
+			c.Set("Access-Control-Allow-Credentials", "true")
+			c.Set("Access-Control-Max-Age", "86400")
+		}
+		
+		log.Printf("[CORS] Preflight request from origin: %s, allowed: %v", origin, isAllowed)
+		return c.SendStatus(204)
+	})
+	
 	app.Use(cors.New(cors.Config{
 		AllowOrigins:     allowedOrigins,
 		AllowMethods:     "GET,POST,PUT,DELETE,OPTIONS",
-		AllowHeaders:     "Origin, Content-Type, Accept, Authorization",
+		AllowHeaders:     "*", // Allow all headers for debugging
 		AllowCredentials: true,
+		ExposeHeaders:    "Content-Length,Content-Type,Authorization",
+		MaxAge:           86400, // 24 hours
 	}))
 
 	// Setup routes
@@ -58,6 +86,21 @@ func main() {
 			"requestOrigin":  c.Get("Origin"),
 			"userAgent":      c.Get("User-Agent"),
 			"method":         c.Method(),
+			"headers":        c.GetReqHeaders(),
+			"envVars": fiber.Map{
+				"ALLOWED_ORIGINS": os.Getenv("ALLOWED_ORIGINS"),
+				"ENVIRONMENT":     os.Getenv("ENVIRONMENT"),
+			},
+		})
+	})
+
+	// Add specific CORS test endpoint
+	app.All("/debug/cors-test", func(c *fiber.Ctx) error {
+		return c.JSON(fiber.Map{
+			"message": "CORS test successful",
+			"method":  c.Method(),
+			"origin":  c.Get("Origin"),
+			"headers": c.GetReqHeaders(),
 		})
 	})
 
