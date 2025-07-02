@@ -8,6 +8,8 @@ import {
   CreateOnetimeBlockRequest,
   AvailabilityRequest,
   AvailabilityResponse,
+  EmployeeAvailabilityRequest,
+  EmployeeAvailabilityResponse,
 } from "../../types/availability";
 import { availabilityAPI } from "../../utils/availabilityApi";
 import {
@@ -24,6 +26,9 @@ import {
   setOnetimeBlocks,
   addOnetimeBlock,
   updateOnetimeBlock,
+  setEmployeeAvailabilityLoading,
+  setEmployeeAvailabilityError,
+  setEmployeeAvailability,
   closeScheduleModal,
   closeRecurringBreakModal,
   closeOnetimeBlockModal,
@@ -237,6 +242,27 @@ export const checkAvailability = createAsyncThunk<
     return rejectWithValue(message);
   }
 });
+
+// Employee Availability Data Thunk
+export const fetchEmployeeAvailabilityByDate = createAsyncThunk<
+  void,
+  EmployeeAvailabilityRequest,
+  { rejectValue: string }
+>(
+  "availability/fetchEmployeeAvailabilityByDate",
+  async (request, { dispatch, rejectWithValue }) => {
+    try {
+      dispatch(setEmployeeAvailabilityLoading(true));
+      const response =
+        await availabilityAPI.availability.getEmployeeAvailability(request);
+      dispatch(setEmployeeAvailability(response));
+    } catch (error: any) {
+      const message = error.message || "Failed to fetch employee availability";
+      dispatch(setEmployeeAvailabilityError(message));
+      return rejectWithValue(message);
+    }
+  }
+);
 
 // Fetch all data for an employee
 export const fetchEmployeeAvailabilityData = createAsyncThunk<

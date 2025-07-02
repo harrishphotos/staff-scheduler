@@ -63,5 +63,9 @@ func SetupRoutes(app *fiber.App) {
 	recurringBreaks.Put("/:id", proxy.ForwardToEmployeeService)     // PUT /api/recurring-breaks/:id -> /recurring-breaks/:id
 	recurringBreaks.Delete("/:id", proxy.ForwardToEmployeeService)  // DELETE /api/recurring-breaks/:id -> /recurring-breaks/:id
 
+	// Availability Checking Routes - forwarded to employee service
+	availability := protected.Group("/availability")
+	availability.Post("/", proxy.ForwardToEmployeeService)          // POST /api/availability/ -> /availability
+
 	// Future routes for additional services can be added here
 }

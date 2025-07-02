@@ -1,5 +1,6 @@
-import React, { useState } from "react";
-import { useSelector } from "react-redux";
+import React, { useState, useEffect } from "react";
+import { useSelector, useDispatch } from "react-redux";
+import { AppDispatch } from "../../../../store/store";
 import { Staff } from "../../../../types/staff";
 import { Calendar, Clock, Coffee, CalendarX } from "lucide-react";
 import {
@@ -8,9 +9,14 @@ import {
   selectOnetimeBlocks,
   selectWeeklySchedule,
   selectRecurringBreaksByDay,
+  selectEmployeeAvailability,
+  selectLoadingStates,
+  selectErrorStates,
 } from "../../../../store/slices/availabilitySlice";
+import { fetchEmployeeAvailabilityByDate } from "../../../../store/thunks/availabilityThunk";
 import { DAYS_OF_WEEK } from "../../../../types/availability";
 import { availabilityHelpers } from "../../../../utils/availabilityApi";
+import DailyAvailabilityTimeline from "./DailyAvailabilityTimeline";
 // import DateStrip from "../../../date/DateStrip";
 // import SelectedDatePanel from "../../../date/SelectedDatePanel";
 
@@ -19,13 +25,18 @@ interface StaffOverviewTabProps {
 }
 
 const StaffOverviewTab: React.FC<StaffOverviewTabProps> = ({ staff }) => {
+  const dispatch = useDispatch<AppDispatch>();
   const schedules = useSelector(selectSchedules);
   const recurringBreaks = useSelector(selectRecurringBreaks);
   const onetimeBlocks = useSelector(selectOnetimeBlocks);
   const weeklySchedule = useSelector(selectWeeklySchedule);
   const breaksByDay = useSelector(selectRecurringBreaksByDay);
+  const employeeAvailability = useSelector(selectEmployeeAvailability);
+  const loadingStates = useSelector(selectLoadingStates);
+  const errorStates = useSelector(selectErrorStates);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [baseDate, setBaseDate] = useState(new Date());
+  const [timelineDate, setTimelineDate] = useState(new Date());
 
   const handleSelectDate = (date: Date) => {
     if (selectedDate?.toDateString() === date.toDateString()) {
@@ -34,6 +45,19 @@ const StaffOverviewTab: React.FC<StaffOverviewTabProps> = ({ staff }) => {
       setSelectedDate(date); // open panel with new date
     }
   };
+
+  // Fetch availability data for timeline when staff or date changes
+  useEffect(() => {
+    if (staff?.id && timelineDate) {
+      const dateString = timelineDate.toISOString().split("T")[0]; // YYYY-MM-DD format
+      dispatch(
+        fetchEmployeeAvailabilityByDate({
+          employee_id: staff.id,
+          date: dateString,
+        })
+      );
+    }
+  }, [dispatch, staff?.id, timelineDate]);
 
   // Helper function to parse time safely
   const parseTimeString = (timeString: string) => {
@@ -247,6 +271,63 @@ const StaffOverviewTab: React.FC<StaffOverviewTabProps> = ({ staff }) => {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Daily Availability Timeline */}
+      <div className="bg-white/5 border border-white/10 rounded-lg p-4 backdrop-blur-sm">
+        <div className="flex justify-between items-center mb-4">
+          <h4 className="font-medium text-white/95">Daily Timeline</h4>
+          <div className="flex items-center space-x-2">
+            <label className="text-sm text-white/70">Date:</label>
+            <input
+              type="date"
+              value={timelineDate.toISOString().split("T")[0]}
+              onChange={(e) =>
+                setTimelineDate(new Date(e.target.value + "T00:00:00"))
+              }
+              className="bg-white/10 border border-white/20 rounded px-3 py-1 text-sm text-white/90 
+                         focus:bg-white/15 focus:border-white/30 focus:outline-none"
+            />
+          </div>
+        </div>
+
+        {employeeAvailability && (
+          <DailyAvailabilityTimeline
+            availabilityData={employeeAvailability}
+            staffName={`${staff.firstName} ${staff.lastName}`}
+          />
+        )}
+
+        {!employeeAvailability && loadingStates.employeeAvailability && (
+          <div className="animate-pulse">
+            <div className="h-4 bg-white/5 rounded w-1/3 mb-2"></div>
+            <div className="h-12 bg-white/5 rounded mb-3"></div>
+            <div className="flex justify-between">
+              <div className="h-3 bg-white/5 rounded w-16"></div>
+              <div className="h-3 bg-white/5 rounded w-16"></div>
+            </div>
+          </div>
+        )}
+
+        {!employeeAvailability &&
+          !loadingStates.employeeAvailability &&
+          errorStates.employeeAvailability && (
+            <div className="text-center py-4">
+              <span className="text-red-400">
+                {errorStates.employeeAvailability}
+              </span>
+            </div>
+          )}
+
+        {!employeeAvailability &&
+          !loadingStates.employeeAvailability &&
+          !errorStates.employeeAvailability && (
+            <div className="text-center py-4">
+              <span className="text-white/60">
+                Select a date to view availability
+              </span>
+            </div>
+          )}
       </div>
 
       {/* Weekly Schedule Summary */}

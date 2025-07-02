@@ -5,6 +5,7 @@ import {
   RecurringBreak,
   OnetimeBlock,
   WeeklySchedule,
+  EmployeeAvailabilityResponse,
 } from "../../types/availability";
 
 // Define the shape of the availability state
@@ -13,6 +14,9 @@ interface AvailabilityState {
   schedules: Schedule[];
   recurringBreaks: RecurringBreak[];
   onetimeBlocks: OnetimeBlock[];
+
+  // Employee Availability Data (for specific dates)
+  employeeAvailability: EmployeeAvailabilityResponse | null;
 
   // UI State
   selectedEmployeeId: string | null;
@@ -23,6 +27,7 @@ interface AvailabilityState {
     schedules: boolean;
     recurringBreaks: boolean;
     onetimeBlocks: boolean;
+    employeeAvailability: boolean;
   };
 
   // Error states
@@ -30,6 +35,7 @@ interface AvailabilityState {
     schedules: string | null;
     recurringBreaks: string | null;
     onetimeBlocks: string | null;
+    employeeAvailability: string | null;
   };
 
   // Modal states
@@ -59,6 +65,9 @@ const initialState: AvailabilityState = {
   recurringBreaks: [],
   onetimeBlocks: [],
 
+  // Employee Availability Data
+  employeeAvailability: null,
+
   // UI State
   selectedEmployeeId: null,
   activeTab: "overview",
@@ -68,6 +77,7 @@ const initialState: AvailabilityState = {
     schedules: false,
     recurringBreaks: false,
     onetimeBlocks: false,
+    employeeAvailability: false,
   },
 
   // Error states
@@ -75,6 +85,7 @@ const initialState: AvailabilityState = {
     schedules: null,
     recurringBreaks: null,
     onetimeBlocks: null,
+    employeeAvailability: null,
   },
 
   // Modal states
@@ -109,6 +120,7 @@ const availabilitySlice = createSlice({
       state.schedules = [];
       state.recurringBreaks = [];
       state.onetimeBlocks = [];
+      state.employeeAvailability = null;
     },
 
     // Tab navigation
@@ -204,6 +216,29 @@ const availabilitySlice = createSlice({
       );
     },
 
+    // Employee Availability actions
+    setEmployeeAvailabilityLoading: (state, action: PayloadAction<boolean>) => {
+      state.loading.employeeAvailability = action.payload;
+    },
+    setEmployeeAvailabilityError: (
+      state,
+      action: PayloadAction<string | null>
+    ) => {
+      state.error.employeeAvailability = action.payload;
+    },
+    setEmployeeAvailability: (
+      state,
+      action: PayloadAction<EmployeeAvailabilityResponse>
+    ) => {
+      // Store data as-is, time conversion will be handled in component
+      state.employeeAvailability = action.payload;
+      state.loading.employeeAvailability = false;
+      state.error.employeeAvailability = null;
+    },
+    clearEmployeeAvailability: (state) => {
+      state.employeeAvailability = null;
+    },
+
     // Modal actions
     openScheduleModal: (
       state,
@@ -249,6 +284,7 @@ const availabilitySlice = createSlice({
       state.error.schedules = null;
       state.error.recurringBreaks = null;
       state.error.onetimeBlocks = null;
+      state.error.employeeAvailability = null;
     },
   },
 });
@@ -275,6 +311,10 @@ export const {
   addOnetimeBlock,
   updateOnetimeBlock,
   removeOnetimeBlock,
+  setEmployeeAvailabilityLoading,
+  setEmployeeAvailabilityError,
+  setEmployeeAvailability,
+  clearEmployeeAvailability,
   openScheduleModal,
   closeScheduleModal,
   openRecurringBreakModal,
@@ -370,4 +410,9 @@ export const selectErrorStates = createSelector(
 export const selectModalStates = createSelector(
   (state: RootState) => state.availability.modals,
   (modals) => modals
+);
+
+export const selectEmployeeAvailability = createSelector(
+  (state: RootState) => state.availability.employeeAvailability,
+  (employeeAvailability) => employeeAvailability
 );
