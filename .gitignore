@@ -231,3 +231,5 @@ coverage.html
 # Docker
 .dockerignore
 docker-compose.override.yml
+
+COLD_START_SOLUTION.md
