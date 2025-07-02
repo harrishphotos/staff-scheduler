@@ -7,6 +7,8 @@ import {
   CreateOnetimeBlockRequest,
   AvailabilityRequest,
   AvailabilityResponse,
+  EmployeeAvailabilityRequest,
+  EmployeeAvailabilityResponse,
 } from "../types/availability";
 import axiosInstance from "../api/axios";
 
@@ -144,12 +146,23 @@ export const availabilityAPI = {
 
   // Availability Checking
   availability: {
-    // Check employee availability for services and time range
+    // Check employee availability for services and time range (legacy)
     check: async (
       request: AvailabilityRequest
     ): Promise<AvailabilityResponse[]> => {
       const { data } = await axiosInstance.post<AvailabilityResponse[]>(
         "/api/employees/availability",
+        request
+      );
+      return data;
+    },
+
+    // Get employee availability data for a specific date (new)
+    getEmployeeAvailability: async (
+      request: EmployeeAvailabilityRequest
+    ): Promise<EmployeeAvailabilityResponse> => {
+      const { data } = await axiosInstance.post<EmployeeAvailabilityResponse>(
+        "/api/availability",
         request
       );
       return data;

@@ -82,7 +82,7 @@ export const DAYS_OF_WEEK: DayOfWeekInfo[] = [
   { value: 6, label: "Saturday", short: "Sat" },
 ];
 
-// Availability checking types
+// Availability checking types (legacy - for service booking)
 export interface AvailabilityRequest {
   service: string[];
   starttime: string; // RFC3339 format
@@ -93,4 +93,35 @@ export interface AvailabilityResponse {
   employeeid: string;
   service: string[];
   EWT: string[]; // Effective Working Time slots
+}
+
+// Employee Availability Data types (new - for staff management)
+export interface EmployeeAvailabilityRequest {
+  date: string; // YYYY-MM-DD format
+  employee_id: string; // UUID string
+}
+
+export interface EmployeeAvailabilitySchedule {
+  start_time: string; // ISO datetime
+  end_time: string; // ISO datetime
+}
+
+export interface EmployeeAvailabilityBlock {
+  start_time: string; // ISO datetime
+  end_time: string; // ISO datetime
+  reason: string;
+}
+
+export interface EmployeeAvailabilityBreak {
+  start_time: string; // ISO datetime
+  end_time: string; // ISO datetime
+  reason: string;
+}
+
+export interface EmployeeAvailabilityResponse {
+  date: string; // ISO date
+  employee_id: string; // UUID string
+  schedule: EmployeeAvailabilitySchedule | null;
+  onetimeblocks: EmployeeAvailabilityBlock[];
+  breaks: EmployeeAvailabilityBreak[];
 }
