@@ -1,12 +1,16 @@
 package main
 
 import (
+	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"services/api-gateway/internal/handler"
 	"services/api-gateway/internal/health"
+	"services/api-gateway/internal/proxy"
 	"services/shared/utils"
 	"strings"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
@@ -101,6 +105,51 @@ func main() {
 			"method":  c.Method(),
 			"origin":  c.Get("Origin"),
 			"headers": c.GetReqHeaders(),
+		})
+	})
+
+	// Add service URL debug endpoint
+	app.Get("/debug/services", func(c *fiber.Ctx) error {
+		authURL := proxy.GetServiceURL("auth")
+		employeeURL := proxy.GetServiceURL("employee")
+		
+		// Test connectivity
+		authStatus := "unknown"
+		employeeStatus := "unknown"
+		
+		// Quick health check with short timeout
+		client := &http.Client{Timeout: 10 * time.Second}
+		
+		if authResp, err := client.Get(authURL + "/health"); err != nil {
+			authStatus = fmt.Sprintf("error: %v", err)
+		} else {
+			authResp.Body.Close()
+			authStatus = fmt.Sprintf("status %d", authResp.StatusCode)
+		}
+		
+		if empResp, err := client.Get(employeeURL + "/health"); err != nil {
+			employeeStatus = fmt.Sprintf("error: %v", err)
+		} else {
+			empResp.Body.Close()
+			employeeStatus = fmt.Sprintf("status %d", empResp.StatusCode)
+		}
+		
+		return c.JSON(fiber.Map{
+			"environment_variables": fiber.Map{
+				"AUTH_SERVICE_URL":     os.Getenv("AUTH_SERVICE_URL"),
+				"EMPLOYEE_SERVICE_URL": os.Getenv("EMPLOYEE_SERVICE_URL"),
+				"PORT":                 os.Getenv("PORT"),
+				"GATEWAY_PORT":         os.Getenv("GATEWAY_PORT"),
+				"ENVIRONMENT":          os.Getenv("ENVIRONMENT"),
+			},
+			"resolved_urls": fiber.Map{
+				"auth_service":     authURL,
+				"employee_service": employeeURL,
+			},
+			"connectivity_test": fiber.Map{
+				"auth_service":     authStatus,
+				"employee_service": employeeStatus,
+			},
 		})
 	})
 
