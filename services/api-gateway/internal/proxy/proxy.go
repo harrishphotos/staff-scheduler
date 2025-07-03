@@ -46,13 +46,17 @@ var (
 	registryMutex   sync.RWMutex
 )
 
-// getServiceURL returns the URL for a given service based on environment variables
-func getServiceURL(serviceName string) string {
+// GetServiceURL returns the URL for a given service based on environment variables (exported for debugging)
+func GetServiceURL(serviceName string) string {
 	envVarName := fmt.Sprintf("%s_SERVICE_URL", strings.ToUpper(serviceName))
 	serviceURL := os.Getenv(envVarName)
 	
+	fmt.Printf("[DEBUG] Looking for env var: %s\n", envVarName)
+	fmt.Printf("[DEBUG] Raw env value: '%s'\n", serviceURL)
+	
 	if serviceURL == "" {
 		// Fallback to default URLs if not configured
+		fmt.Printf("[DEBUG] No env var found for %s, using fallback\n", serviceName)
 		switch serviceName {
 		case "employee":
 			return "http://localhost:3002"
@@ -61,6 +65,12 @@ func getServiceURL(serviceName string) string {
 		default:
 			return "http://localhost:3000"
 		}
+	}
+	
+	// Ensure URL has proper protocol scheme
+	if !strings.HasPrefix(serviceURL, "http://") && !strings.HasPrefix(serviceURL, "https://") {
+		serviceURL = "https://" + serviceURL
+		fmt.Printf("[DEBUG] Added https:// prefix, final URL: %s\n", serviceURL)
 	}
 	
 	return serviceURL
@@ -88,13 +98,14 @@ func getOrCreateServiceState(serviceURL string) *ServiceState {
 
 // ForwardToEmployeeService forwards requests to the employee service
 func ForwardToEmployeeService(c *fiber.Ctx) error {
-	targetURL := getServiceURL("employee")
+	targetURL := GetServiceURL("employee")
 	return forwardRequestWithQueue(c, targetURL)
 }
 
 // ForwardToAuthService forwards requests to the auth service
 func ForwardToAuthService(c *fiber.Ctx) error {
-	targetURL := getServiceURL("auth")
+	targetURL := GetServiceURL("auth")
+	fmt.Printf("[DEBUG] Auth service URL resolved to: %s\n", targetURL)
 	return forwardRequestWithQueue(c, targetURL)
 }
 
@@ -103,7 +114,7 @@ func checkServiceHealth(serviceURL string) bool {
 	healthURL := serviceURL + "/health"
 	
 	client := &http.Client{
-		Timeout: 10 * time.Second, // Reduced timeout for health checks
+		Timeout: 15 * time.Second, // Reasonable timeout for health checks (increased from 10s)
 	}
 	
 	resp, err := client.Get(healthURL)
@@ -152,11 +163,25 @@ func startServiceWakeUp(serviceState *ServiceState) {
 		for time.Since(startTime) < maxWakeUpTime {
 			attempt++
 			
-			// Make wake-up request
-			client := &http.Client{Timeout: 5 * time.Second}
-			resp, err := client.Get(serviceState.URL + "/health")
+			// Make wake-up request with longer timeout for cold starts
+			timeout := 30 * time.Second // Increased from 5s to 30s for cold starts
+			if attempt <= 3 {
+				timeout = 45 * time.Second // Even longer for first few attempts
+			}
+			client := &http.Client{Timeout: timeout}
+			healthEndpoint := serviceState.URL + "/health"
+			fmt.Printf("[WARMUP] Attempting to reach: %s (timeout: %v)\n", healthEndpoint, timeout)
+			
+			resp, err := client.Get(healthEndpoint)
 			if resp != nil {
 				resp.Body.Close()
+			}
+			
+			// Log detailed error information
+			if err != nil {
+				fmt.Printf("[WARMUP] HTTP error for %s: %v\n", healthEndpoint, err)
+			} else if resp.StatusCode != 200 {
+				fmt.Printf("[WARMUP] Non-200 response from %s: %d\n", healthEndpoint, resp.StatusCode)
 			}
 			
 			// Check if service is ready
@@ -170,16 +195,20 @@ func startServiceWakeUp(serviceState *ServiceState) {
 				return
 			}
 			
-			// Progressive backoff: 2s, 4s, 6s, then 5s intervals
+			// Progressive backoff optimized for cold starts: 3s, 6s, 10s, then 8s intervals
 			var delay time.Duration
-			if attempt <= 3 {
-				delay = time.Duration(2*attempt) * time.Second
+			if attempt == 1 {
+				delay = 3 * time.Second
+			} else if attempt == 2 {
+				delay = 6 * time.Second
+			} else if attempt == 3 {
+				delay = 10 * time.Second
 			} else {
-				delay = 5 * time.Second
+				delay = 8 * time.Second // Longer intervals for subsequent attempts
 			}
 			
-			fmt.Printf("[WARMUP] Service %s wake-up attempt %d failed, retrying in %v\n", 
-				serviceState.URL, attempt, delay)
+			fmt.Printf("[WARMUP] Service %s wake-up attempt %d failed (timeout: %v), retrying in %v\n", 
+				serviceState.URL, attempt, timeout, delay)
 			time.Sleep(delay)
 		}
 		
