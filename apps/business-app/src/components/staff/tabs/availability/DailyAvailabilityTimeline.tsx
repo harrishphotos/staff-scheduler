@@ -311,21 +311,22 @@ const DailyAvailabilityTimeline: React.FC<DailyAvailabilityTimelineProps> = ({
 
       {/* Timeline Strip */}
       <div className="mb-3">
-        <div className="flex w-full h-12 rounded-lg overflow-hidden border border-white/10">
+        <div className="flex w-full h-12 rounded-lg overflow-visible border border-white/10 relative z-10">
+          {" "}
           {segments.map((segment, index) => (
             <div
               key={index}
               className={`${AVAILABILITY_COLORS[segment.type].bg} ${
                 AVAILABILITY_COLORS[segment.type].border
               } 
-                          border-r last:border-r-0 flex items-center justify-center relative group cursor-pointer
-                          hover:opacity-80 transition-opacity duration-200`}
+      border-r last:border-r-0 flex items-center justify-center relative group cursor-pointer
+      hover:opacity-80 transition-opacity duration-200`}
               style={{ width: `${segment.widthPercentage}%` }}
             >
               {/* Tooltip */}
               <div
                 className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 opacity-0 group-hover:opacity-100 
-                              bg-black/90 text-white text-xs rounded px-2 py-1 pointer-events-none z-10 whitespace-nowrap"
+        bg-black/90 text-white text-xs rounded px-2 py-1 pointer-events-none z-10 whitespace-nowrap"
               >
                 <div className="font-medium">
                   {segment.reason || AVAILABILITY_COLORS[segment.type].label}
@@ -343,8 +344,9 @@ const DailyAvailabilityTimeline: React.FC<DailyAvailabilityTimelineProps> = ({
                 </div>
               </div>
 
+              {/* Removed inline label — replaced by tooltip only */}
               {/* Label inside segment (only if wide enough) */}
-              {segment.widthPercentage > 15 && (
+              {/* {segment.widthPercentage > 15 && (   
                 <span
                   className={`text-xs ${
                     AVAILABILITY_COLORS[segment.type].text
@@ -352,31 +354,85 @@ const DailyAvailabilityTimeline: React.FC<DailyAvailabilityTimelineProps> = ({
                 >
                   {segment.reason || AVAILABILITY_COLORS[segment.type].label}
                 </span>
-              )}
+              )} */}
             </div>
           ))}
         </div>
       </div>
 
       {/* Time Labels */}
-      <div className="relative">
-        <div className="flex justify-between text-xs text-white/60">
-          {timeStampArray.map((minutes, index) => {
-            const timeAtMinutes = new Date(
-              scheduleStart.getTime() + minutes * 60 * 1000
-            );
-            const position = (minutes / totalMinutes) * 100;
+      <div className="relative mt-1 h-6">
+        <div className="absolute inset-0 w-full h-6">
+          {(() => {
+            const renderedPx: number[] = [];
+            const labelMinGap = 40;
+            const containerPx = 1000;
 
-            return (
-              <div
-                key={index}
-                className="absolute transform -translate-x-1/2"
-                style={{ left: `${position}%` }}
-              >
-                {formatTime(timeAtMinutes.toISOString())}
-              </div>
-            );
-          })}
+            return segments.map((segment, index) => {
+              const startMinutes = segment.startMinutes;
+              const endMinutes = segment.endMinutes;
+              const isLastSegment = index === segments.length - 1;
+
+              const startPercent = (startMinutes / totalMinutes) * 100;
+              const startPx = (startPercent / 100) * containerPx;
+
+              const isTooClose = renderedPx.some(
+                (prevPx) => Math.abs(prevPx - startPx) < labelMinGap
+              );
+              renderedPx.push(startPx);
+
+              const time = formatTime(segment.startTime.toISOString());
+              const [hhmm, ampm] = time.split(" ");
+              const [hh, mm] = hhmm.split(":");
+
+              return (
+                <React.Fragment key={index}>
+                  {/* Start Time Label */}
+                  <div
+                    className={`absolute text-[10px] text-white/60 font-mono text-center leading-[10px] ${
+                      startPercent === 0
+                        ? "left-0"
+                        : "transform -translate-x-1/2"
+                    }`}
+                    style={{ left: `${startPercent}%`, top: "0px" }}
+                  >
+                    {isTooClose ? (
+                      <>
+                        <div>{`${hh}:`}</div>
+                        <div>{mm}</div>
+                        <div>{ampm}</div>
+                      </>
+                    ) : (
+                      <span>{`${hh}:${mm} ${ampm}`}</span>
+                    )}
+                  </div>
+
+                  {/* End Time Label for the last segment */}
+                  {isLastSegment && (
+                    <div
+                      className="absolute transform -translate-x-1/2 text-[10px] text-white/60 font-mono text-center leading-[10px]"
+                      style={{ left: "100%", top: "0px" }}
+                    >
+                      {(() => {
+                        const endTime = formatTime(
+                          segment.endTime.toISOString()
+                        );
+                        const [ehhmm, eampm] = endTime.split(" ");
+                        const [ehh, emm] = ehhmm.split(":");
+
+                        return (
+                          <>
+                            <div>{`${ehh}:`}</div>
+                            <div>{`${emm} ${eampm}`}</div>
+                          </>
+                        );
+                      })()}
+                    </div>
+                  )}
+                </React.Fragment>
+              );
+            });
+          })()}
         </div>
       </div>
     </div>
