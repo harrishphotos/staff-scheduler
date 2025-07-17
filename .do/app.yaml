@@ -19,34 +19,42 @@ services:
       - key: GATEWAY_PORT
         value: "8081"
       - key: AUTH_SERVICE_URL
-        value: "http://auth-service:3004"
+        value: "${auth-service.PRIVATE_URL}"
       - key: EMPLOYEE_SERVICE_URL
-        value: "http://employee-service:3002"
+        value: "${employee-service.PRIVATE_URL}"
       - key: ALLOWED_ORIGINS
         value: "https://staffscheduler.software,http://localhost:5173,http://localhost:3001"
       - key: ENVIRONMENT
         value: "production"
+    routes:
+      - path: /
 
-workers:
-  # Auth Service (Internal Worker)
+  # Auth Service (Internal)
   - name: auth-service
     source_dir: /
     github:
       repo: harrishphotos/staff-scheduler
       branch: main
     dockerfile_path: services/auth-service/Dockerfile
+    internal_ports:
+      - 3004
     instance_count: 1
     instance_size_slug: basic-xs
+    health_check:
+      http_path: /health
+      timeout_seconds: 10
+      failure_threshold: 3
+      success_threshold: 2
     envs:
       - key: AUTH_SERVICE_PORT
         value: "3004"
       - key: USER_DB_URL
-        value: "postgresql://neondb_owner:npg_cQWVnp1l5uhX@ep-jolly-grass-a135kwdl-pooler.ap-southeast-1.aws.neon.tech/user_db?sslmode=require"
+        value: "YOUR_NEON_DATABASE_URL"
         type: SECRET
       - key: USER_AUTO_CLEAN
         value: "false"
       - key: PASETO_SECRET_KEY
-        value: "0b31a5b1f2eb3dea08c6efb9be5d4eaf00f13bd075a82e7a1aa702f510dcdcb7"
+        value: "YOUR_PASETO_SECRET"
         type: SECRET
       - key: ACCESS_TOKEN_EXPIRATION
         value: "15m"
@@ -55,10 +63,10 @@ workers:
       - key: SMTP_PORT
         value: "587"
       - key: SMTP_USERNAME
-        value: "8c2bba001@smtp-brevo.com"
+        value: "YOUR_SMTP_USERNAME"
         type: SECRET
       - key: SMTP_PASSWORD
-        value: "qW5s4MKh862GDVxd"
+        value: "YOUR_SMTP_PASSWORD"
         type: SECRET
       - key: SMTP_FROM
         value: "it23291782@my.sliit.lk"
@@ -69,20 +77,27 @@ workers:
       - key: ENVIRONMENT
         value: "production"
 
-  # Employee Service (Internal Worker)
+  # Employee Service (Internal)
   - name: employee-service
     source_dir: /
     github:
       repo: harrishphotos/staff-scheduler
       branch: main
     dockerfile_path: services/employee-service/Dockerfile
+    internal_ports:
+      - 3002
     instance_count: 1
     instance_size_slug: basic-xs
+    health_check:
+      http_path: /health
+      timeout_seconds: 10
+      failure_threshold: 3
+      success_threshold: 2
     envs:
       - key: EMPLOYEE_SERVICE_PORT
         value: "3002"
       - key: EMPLOYEE_DB_URL
-        value: "postgresql://neondb_owner:npg_cQWVnp1l5uhX@ep-jolly-grass-a135kwdl-pooler.ap-southeast-1.aws.neon.tech/employee_db?sslmode=require"
+        value: "YOUR_NEON_DATABASE_URL"
         type: SECRET
       - key: EMPLOYEE_AUTO_CLEAN
         value: "false"

@@ -232,4 +232,4 @@ coverage.html
 .dockerignore
 docker-compose.override.yml
 
-COLD_START_SOLUTION.md
+COLD_START_SOLUTION.md.do/app.yaml
