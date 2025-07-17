@@ -66,7 +66,9 @@ const ResetPassword = () => {
       hasCheckedToken.current = true;
 
       try {
-        const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8081";
+        const API_URL =
+          import.meta.env.VITE_API_URL ||
+          "https://staff-scheduler-q2w5f.ondigitalocean.app";
         // We'll validate token by attempting a reset with empty password first
         // Since we can't expose a separate token validation endpoint for security
         setTokenState({
@@ -129,7 +131,9 @@ const ResetPassword = () => {
     setIsLoading(true);
 
     try {
-      const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8081";
+      const API_URL =
+        import.meta.env.VITE_API_URL ||
+        "https://staff-scheduler-q2w5f.ondigitalocean.app";
       const response = await fetch(`${API_URL}/api/auth/reset-password`, {
         method: "POST",
         headers: {

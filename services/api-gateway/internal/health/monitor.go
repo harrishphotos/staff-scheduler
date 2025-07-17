@@ -191,7 +191,7 @@ func (hm *HealthMonitor) checkServiceHealth(service *ServiceHealth) {
 	healthURL := service.URL + "/health"
 	
 	client := &http.Client{
-		Timeout: 30 * time.Second, // Allow time for cold starts
+		Timeout: 10 * time.Second, // Standard health check timeout
 	}
 	
 	resp, err := client.Get(healthURL)
@@ -289,8 +289,8 @@ func SetupHealthMonitor() *HealthMonitor {
 		employeeURL = "http://localhost:3002"
 	}
 	
-	// Only monitor production Render services (they have .onrender.com in URL)
-	isProduction := strings.Contains(authURL, ".onrender.com") || strings.Contains(employeeURL, ".onrender.com")
+	// Only monitor production DigitalOcean services (they have .ondigitalocean.app in URL)
+	isProduction := strings.Contains(authURL, ".ondigitalocean.app") || strings.Contains(employeeURL, ".ondigitalocean.app")
 	
 	monitor.RegisterService("auth", authURL, isProduction)
 	monitor.RegisterService("employee", employeeURL, isProduction)

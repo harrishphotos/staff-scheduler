@@ -59,9 +59,9 @@ func AuthMiddleware() fiber.Handler {
 		req.Header.Set("Authorization", authHeader)
 		req.Header.Set("Content-Type", "application/json")
 
-		// Make request to auth service with extended timeout for cold starts
+		// Make request to auth service
 		client := &http.Client{
-			Timeout: 60 * time.Second, // Extended timeout for cold starts
+			Timeout: 30 * time.Second, // Standard timeout for always-on services
 		}
 		resp, err := client.Do(req)
 		if err != nil {

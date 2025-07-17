@@ -28,13 +28,15 @@ const initialState: AuthState = {
 };
 
 // Base URL pulled from Vite env – falls back to gateway default on 8081.
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8081";
+const API_URL =
+  import.meta.env.VITE_API_URL ||
+  "https://staff-scheduler-q2w5f.ondigitalocean.app";
 
-// Helper function to make requests with timeout and retry for cold starts
+// Helper function to make requests with timeout
 const fetchWithTimeout = async (
   url: string,
   options: RequestInit,
-  timeoutMs: number = 80000
+  timeoutMs: number = 30000
 ) => {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
@@ -56,7 +58,6 @@ export const login = createAsyncThunk(
   "auth/login",
   async (creds: { email: string; password: string }, { rejectWithValue }) => {
     try {
-      // First attempt with extended timeout for cold starts (80 seconds)
       const response = await fetchWithTimeout(
         `${API_URL}/api/auth/login`,
         {
@@ -67,8 +68,8 @@ export const login = createAsyncThunk(
           credentials: "include", // so refresh cookie is set
           body: JSON.stringify(creds),
         },
-        80000
-      ); // 80 second timeout for cold start
+        30000
+      );
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -79,7 +80,7 @@ export const login = createAsyncThunk(
     } catch (err: any) {
       if (err.name === "AbortError") {
         return rejectWithValue(
-          "Request timed out. Services are starting up, please try again in a moment."
+          "Request timed out. Please try again in a moment."
         );
       }
       return rejectWithValue(
@@ -106,8 +107,8 @@ export const register = createAsyncThunk(
           credentials: "include",
           body: JSON.stringify(userData),
         },
-        80000
-      ); // 80 second timeout for cold start
+        30000
+      );
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -118,7 +119,7 @@ export const register = createAsyncThunk(
     } catch (err: any) {
       if (err.name === "AbortError") {
         return rejectWithValue(
-          "Request timed out. Services are starting up, please try again in a moment."
+          "Request timed out. Please try again in a moment."
         );
       }
       return rejectWithValue(
@@ -141,8 +142,8 @@ export const refresh = createAsyncThunk(
           },
           credentials: "include",
         },
-        80000
-      ); // 80 second timeout for cold start
+        30000
+      );
 
       if (!response.ok) {
         return rejectWithValue("Token refresh failed");
@@ -152,7 +153,7 @@ export const refresh = createAsyncThunk(
     } catch (err: any) {
       if (err.name === "AbortError") {
         return rejectWithValue(
-          "Request timed out. Services are starting up, please try again in a moment."
+          "Request timed out. Please try again in a moment."
         );
       }
       return rejectWithValue("Token refresh failed");
@@ -173,13 +174,13 @@ export const logoutThunk = createAsyncThunk(
           },
           credentials: "include",
         },
-        80000
-      ); // 80 second timeout for cold start
+        30000
+      );
       return true;
     } catch (err: any) {
       if (err.name === "AbortError") {
         return rejectWithValue(
-          "Request timed out. Services are starting up, please try again in a moment."
+          "Request timed out. Please try again in a moment."
         );
       }
       return rejectWithValue("Logout failed");
