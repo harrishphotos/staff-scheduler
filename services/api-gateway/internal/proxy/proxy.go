@@ -139,85 +139,43 @@ func updateServiceHealth(serviceState *ServiceState) {
 	}
 }
 
-// startServiceWakeUp initiates the wake-up process for a sleeping service
+// startServiceWakeUp performs a quick health check on the service (simplified for always-on services)
 func startServiceWakeUp(serviceState *ServiceState) {
 	serviceState.WakeUpMutex.Lock()
 	defer serviceState.WakeUpMutex.Unlock()
 	
-	// If already waking up, don't start another process
+	// If already checking, don't start another process
 	if serviceState.IsWakingUp {
 		return
 	}
 	
 	serviceState.IsWakingUp = true
-	serviceState.WakeUpStarted = time.Now()
 	
-	fmt.Printf("[WARMUP] Starting wake-up process for service %s\n", serviceState.URL)
+	fmt.Printf("[HEALTH] Checking service health for %s\n", serviceState.URL)
 	
-	// Start background wake-up process
+	// Quick health check
 	go func() {
-		maxWakeUpTime := 75 * time.Second // Slightly less than frontend timeout
-		startTime := time.Now()
-		attempt := 0
+		client := &http.Client{Timeout: 10 * time.Second} // Standard timeout for always-on services
+		healthEndpoint := serviceState.URL + "/health"
 		
-		for time.Since(startTime) < maxWakeUpTime {
-			attempt++
-			
-			// Make wake-up request with longer timeout for cold starts
-			timeout := 30 * time.Second // Increased from 5s to 30s for cold starts
-			if attempt <= 3 {
-				timeout = 45 * time.Second // Even longer for first few attempts
-			}
-			client := &http.Client{Timeout: timeout}
-			healthEndpoint := serviceState.URL + "/health"
-			fmt.Printf("[WARMUP] Attempting to reach: %s (timeout: %v)\n", healthEndpoint, timeout)
-			
-			resp, err := client.Get(healthEndpoint)
-			if resp != nil {
-				resp.Body.Close()
-			}
-			
-			// Log detailed error information
-			if err != nil {
-				fmt.Printf("[WARMUP] HTTP error for %s: %v\n", healthEndpoint, err)
-			} else if resp.StatusCode != 200 {
-				fmt.Printf("[WARMUP] Non-200 response from %s: %d\n", healthEndpoint, resp.StatusCode)
-			}
-			
-			// Check if service is ready
-			if err == nil && resp.StatusCode == 200 {
-				serviceState.IsHealthy = true
-				serviceState.IsWakingUp = false
-				serviceState.LastHealthCheck = time.Now()
-				fmt.Printf("[WARMUP] Service %s woke up after %v (attempt %d)\n", 
-					serviceState.URL, time.Since(startTime), attempt)
-				go processQueuedRequests(serviceState)
-				return
-			}
-			
-			// Progressive backoff optimized for cold starts: 3s, 6s, 10s, then 8s intervals
-			var delay time.Duration
-			if attempt == 1 {
-				delay = 3 * time.Second
-			} else if attempt == 2 {
-				delay = 6 * time.Second
-			} else if attempt == 3 {
-				delay = 10 * time.Second
-			} else {
-				delay = 8 * time.Second // Longer intervals for subsequent attempts
-			}
-			
-			fmt.Printf("[WARMUP] Service %s wake-up attempt %d failed (timeout: %v), retrying in %v\n", 
-				serviceState.URL, attempt, timeout, delay)
-			time.Sleep(delay)
+		resp, err := client.Get(healthEndpoint)
+		if resp != nil {
+			resp.Body.Close()
 		}
 		
-		// Wake-up failed
-		serviceState.IsWakingUp = false
-		fmt.Printf("[WARMUP] Service %s failed to wake up within %v\n", 
-			serviceState.URL, maxWakeUpTime)
-		go processQueuedRequestsWithError(serviceState, 
-			fmt.Errorf("service failed to wake up within %v", maxWakeUpTime))
+		// Check if service is ready
+		if err == nil && resp.StatusCode == 200 {
+			serviceState.IsHealthy = true
+			serviceState.IsWakingUp = false
+			serviceState.LastHealthCheck = time.Now()
+			fmt.Printf("[HEALTH] Service %s is healthy\n", serviceState.URL)
+			go processQueuedRequests(serviceState)
+		} else {
+			serviceState.IsWakingUp = false
+			fmt.Printf("[HEALTH] Service %s health check failed: %v\n", serviceState.URL, err)
+			go processQueuedRequestsWithError(serviceState, 
+				fmt.Errorf("service health check failed: %v", err))
+		}
 	}()
 }
 
@@ -295,7 +253,7 @@ func forwardRequestWithQueue(c *fiber.Ctx, targetBaseURL string) error {
 		return forwardRequestImmediately(c, targetURL)
 	}
 	
-	// If service is not healthy, start wake-up process if not already started
+	// If service is not healthy, check health if not already checking
 	if !serviceState.IsWakingUp {
 		startServiceWakeUp(serviceState)
 	}

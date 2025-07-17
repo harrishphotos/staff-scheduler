@@ -1,0 +1,90 @@
+name: staff-scheduler
+services:
+  # API Gateway Service (Public)
+  - name: api-gateway
+    source_dir: /
+    github:
+      repo: harrishphotos/staff-scheduler
+      branch: main
+    dockerfile_path: services/api-gateway/Dockerfile
+    http_port: 8081
+    instance_count: 1
+    instance_size_slug: basic-xs
+    health_check:
+      http_path: /health
+      timeout_seconds: 10
+      failure_threshold: 3
+      success_threshold: 2
+    envs:
+      - key: GATEWAY_PORT
+        value: "8081"
+      - key: AUTH_SERVICE_URL
+        value: "http://auth-service:3004"
+      - key: EMPLOYEE_SERVICE_URL
+        value: "http://employee-service:3002"
+      - key: ALLOWED_ORIGINS
+        value: "https://staffscheduler.software,http://localhost:5173,http://localhost:3001"
+      - key: ENVIRONMENT
+        value: "production"
+
+workers:
+  # Auth Service (Internal Worker)
+  - name: auth-service
+    source_dir: /
+    github:
+      repo: harrishphotos/staff-scheduler
+      branch: main
+    dockerfile_path: services/auth-service/Dockerfile
+    instance_count: 1
+    instance_size_slug: basic-xs
+    envs:
+      - key: AUTH_SERVICE_PORT
+        value: "3004"
+      - key: USER_DB_URL
+        value: "postgresql://neondb_owner:npg_cQWVnp1l5uhX@ep-jolly-grass-a135kwdl-pooler.ap-southeast-1.aws.neon.tech/user_db?sslmode=require"
+        type: SECRET
+      - key: USER_AUTO_CLEAN
+        value: "false"
+      - key: PASETO_SECRET_KEY
+        value: "0b31a5b1f2eb3dea08c6efb9be5d4eaf00f13bd075a82e7a1aa702f510dcdcb7"
+        type: SECRET
+      - key: ACCESS_TOKEN_EXPIRATION
+        value: "15m"
+      - key: SMTP_HOST
+        value: "smtp-relay.brevo.com"
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USERNAME
+        value: "8c2bba001@smtp-brevo.com"
+        type: SECRET
+      - key: SMTP_PASSWORD
+        value: "qW5s4MKh862GDVxd"
+        type: SECRET
+      - key: SMTP_FROM
+        value: "it23291782@my.sliit.lk"
+      - key: APP_URL
+        value: "${api-gateway.PUBLIC_URL}"
+      - key: FRONTEND_URL
+        value: "https://staffscheduler.software"
+      - key: ENVIRONMENT
+        value: "production"
+
+  # Employee Service (Internal Worker)
+  - name: employee-service
+    source_dir: /
+    github:
+      repo: harrishphotos/staff-scheduler
+      branch: main
+    dockerfile_path: services/employee-service/Dockerfile
+    instance_count: 1
+    instance_size_slug: basic-xs
+    envs:
+      - key: EMPLOYEE_SERVICE_PORT
+        value: "3002"
+      - key: EMPLOYEE_DB_URL
+        value: "postgresql://neondb_owner:npg_cQWVnp1l5uhX@ep-jolly-grass-a135kwdl-pooler.ap-southeast-1.aws.neon.tech/employee_db?sslmode=require"
+        type: SECRET
+      - key: EMPLOYEE_AUTO_CLEAN
+        value: "false"
+      - key: ENVIRONMENT
+        value: "production"
